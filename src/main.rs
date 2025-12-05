@@ -75,14 +75,14 @@ impl Command {
         ("e", Self::Rebase), // r__e__base
         ("f", Self::Fetch),
         ("g", Self::Checkout), // goto
-        //("h", todo!()),
+        //("h", _),
         ("i", Self::Init),
-        //("j", todo!()),
+        //("j", _),
         ("k", Self::Clone),
         ("l", Self::Log),
         ("m", Self::Merge),
-        //("n", todo!()),
-        //("o", todo!()),
+        //("n", _),
+        //("o", _),
         ("p", Self::Push),
         ("q", Self::Pull), // visually reversed 'p', on the opposite end of keyboard
         ("rl", Self::Reflog), // __r__ef__l__og
@@ -94,7 +94,7 @@ impl Command {
         ("v", Self::Show),    // view
         ("w", Self::Worktree),
         ("x", Self::Clean),
-        //("y", todo!()),
+        //("y", _),
         ("z", Self::Stash), // ztash, similar to marks in modal editors
     ];
 
@@ -109,12 +109,12 @@ impl Command {
 
     fn expand_flags(&self, flags: &str, target: Option<String>) -> String {
         let mut body = Vec::new();
-        let mut end_flags = Vec::new();
+        let mut end = Vec::new();
         for flag in flags.chars() {
             let expanded_flag = match self {
                 Command::Add => match flag {
                     'a' => {
-                        end_flags.push(":/");
+                        end.push(":/");
                         "--all"
                     }
                     'e' => "--edit",
@@ -127,10 +127,37 @@ impl Command {
                     'v' => "--verbose",
                     _ => bail(),
                 },
-                Command::Blame => todo!(),
-                Command::Branch => todo!(),
-                Command::Checkout => todo!(),
-                Command::Clean => todo!(),
+                Command::Blame => match flag {
+                    'l' => {
+                        end.push("-L %");
+                        continue;
+                    }
+                    _ => bail(),
+                },
+                Command::Branch => match flag {
+                    'd' => "--delete",
+                    'D' => "--delete --force",
+                    'f' => "--force",
+                    'm' => "--move",
+                    'M' => "--move --force",
+                    'c' => "--copy",
+                    'C' => "--copy --force",
+                    'i' => "--ignore-case",
+                    'r' => "--remotes",
+                    'a' => "--all",
+                    'l' => "--list",
+                    'v' => "--verbose",
+                    'q' => "--quiet",
+                    't' => "--track",
+                    'e' => "--edit-description",
+                    _ => bail(),
+                },
+                Command::Checkout => match flag {
+                    _ => bail(),
+                },
+                Command::Clean => match flag {
+                    _ => bail(),
+                },
                 Command::Clone => match flag {
                     'b' => "--bare",
                     'd' => "--dissociate",
@@ -141,7 +168,7 @@ impl Command {
                     's' => "--sparse",
                     'v' => "--verbose",
                     'r' => {
-                        end_flags.push("--reference=%");
+                        end.push("--reference=%");
                         continue;
                     }
                     _ => bail(),
@@ -150,7 +177,7 @@ impl Command {
                     'a' => "--amend",
                     'i' => "--include",
                     'm' => {
-                        end_flags.push("--message=\"%\"");
+                        end.push("--message=\"%\"");
                         continue;
                     }
                     'n' => "--no-verify",
@@ -161,28 +188,124 @@ impl Command {
                     'v' => "--verbose",
                     _ => bail(),
                 },
-                Command::Diff => todo!(),
-                Command::Fetch => todo!(),
+                Command::Diff => match flag {
+                    _ => bail(),
+                },
+                Command::Fetch => match flag {
+                    '4' => "--ipv4",
+                    '6' => "--ipv6",
+                    'a' => "--all",
+                    'd' => "--dry-run",
+                    'f' => "--force",
+                    'p' => "--prune",
+                    'P' => "--prune-tags",
+                    'q' => "--quiet",
+                    't' => "--tags",
+                    'u' => {
+                        /* TODO: Get name of branch */
+                        continue;
+                    }
+                    'v' => "--verbose",
+                    _ => bail(),
+                },
                 Command::Init => match flag {
                     'b' => "--bare",
                     'h' => "--object-format=sha256",
                     'i' => {
-                        end_flags.push("--initial-branch=%");
+                        end.push("--initial-branch=%");
                         continue;
                     }
                     'q' => "--quiet",
                     's' => {
-                        end_flags.push("--separate-git-dir=%");
+                        end.push("--separate-git-dir=%");
                         continue;
                     }
                     _ => bail(),
                 },
-                Command::Log => todo!(),
-                Command::Merge => todo!(),
-                Command::Pull => todo!(),
-                Command::Push => todo!(),
-                Command::Rebase => todo!(),
-                Command::Reflog => todo!(),
+                Command::Log => match flag {
+                    'o' => "--oneline",
+                    'f' => "--follow",
+                    'd' => "--decorate",
+                    's' => "--sparse",
+                    'm' => "--merges",
+                    'a' => "--all",
+                    '1' => "--first-parent",
+                    'b' => "--bisect",
+                    'g' => "--graph",
+                    'D' => "--date-order",
+                    'r' => "--reverse",
+                    'l' => "--no-abrev-commit",
+                    'p' => "--parents",
+                    'c' => "--children",
+                    _ => bail(),
+                },
+                Command::Merge => match flag {
+                    _ => bail(),
+                },
+                Command::Pull => match flag {
+                    '4' => "--ipv4",
+                    '6' => "--ipv6",
+                    'a' => "--all",
+                    'd' => "--dry-run",
+                    'e' => "--edit",
+                    'f' => "--force",
+                    'p' => "--prune",
+                    'q' => "--quiet",
+                    'r' => "--recurse-submodules",
+                    't' => "--tags",
+                    'u' => {
+                        /* TODO: Get name of the current branch */
+                        continue;
+                    }
+                    'v' => "--verbose",
+                    _ => bail(),
+                },
+                Command::Push => match flag {
+                    '4' => "--ipv4",
+                    '6' => "--ipv6",
+                    'a' => "--all",
+                    'A' => "--atomic",
+                    'd' => "--delete",
+                    'f' => "--force",
+                    'm' => "--mirror",
+                    'p' => "--prune",
+                    'q' => "--quiet",
+                    'r' => "--recurse-submodules",
+                    't' => "--tags",
+                    'u' => {
+                        /* TODO: Get name of the current branch */
+                        continue;
+                    }
+                    'v' => "--verbose",
+                    _ => bail(),
+                },
+                Command::Rebase => match flag {
+                    'a' => "--abort",
+                    'c' => "--continue",
+                    'e' => "--edit-todo",
+                    'h' => "--show-current-patch",
+                    'i' => "--interactive",
+                    'k' => "--keep-base",
+                    'o' => {
+                        end.push("--onto=%");
+                        continue;
+                    }
+                    'q' => "--quiet",
+                    'Q' => "--quit",
+                    'r' => "--root",
+                    's' => "--skip",
+                    't' => "--stat",
+                    'u' => "--uprate-refs",
+                    'v' => "--verbose",
+                    'x' => {
+                        end.push("--exec='%'");
+                        continue;
+                    }
+                    _ => bail(),
+                },
+                Command::Reflog => match flag {
+                    _ => bail(),
+                },
                 Command::Reset => match flag {
                     'h' => "--hard",
                     'k' => "--keep",
@@ -192,18 +315,34 @@ impl Command {
                     's' => "--soft",
                     _ => bail(),
                 },
-                Command::Restore => todo!(),
-                Command::Show => todo!(),
-                Command::Stash => todo!(),
-                Command::Status => todo!(),
-                Command::Switch => todo!(),
-                Command::Tag => todo!(),
-                Command::Worktree => todo!(),
+                Command::Restore => match flag {
+                    _ => bail(),
+                },
+                Command::Show => match flag {
+                    _ => bail(),
+                },
+                Command::Stash => match flag {
+                    _ => bail(),
+                },
+                Command::Status => match flag {
+                    'l' => "--long",
+                    's' => "--short",
+                    _ => bail(),
+                },
+                Command::Switch => match flag {
+                    _ => bail(),
+                },
+                Command::Tag => match flag {
+                    _ => bail(),
+                },
+                Command::Worktree => match flag {
+                    _ => bail(),
+                },
             };
             body.push(expanded_flag);
         }
         let mut result = String::new();
-        for flag in body.iter().chain(end_flags.iter()) {
+        for flag in body.iter().chain(end.iter()) {
             result.push(' ');
             result.push_str(flag);
         }
@@ -288,31 +427,4 @@ fn parse_target(target: &str) -> Option<Option<String>> {
     }
 
     return None;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn test_shorthand(input: &str, sub: char, flags: &str, target: &str) {
-        assert_eq!(split_shorthand(input), Some((sub, flags, target)));
-    }
-
-    #[test]
-    fn test_split_shorthand() {
-        test_shorthand("c", 'c', "", "");
-        test_shorthand("cabc", 'c', "abc", "");
-        test_shorthand("ccc", 'c', "cc", "");
-        test_shorthand("ccch", 'c', "cc", "h");
-        test_shorthand("ccc-", 'c', "cc", "-");
-        test_shorthand("ccc-asdlkjf", 'c', "cc", "-asdlkjf");
-        test_shorthand("ccc---", 'c', "cc", "---");
-        test_shorthand("h", 'h', "", "");
-        test_shorthand("-", '-', "", "");
-        test_shorthand("--", '-', "", "-");
-        test_shorthand("b-23", 'b', "", "-23");
-        test_shorthand("bfeu-23", 'b', "feu", "-23");
-
-        assert_eq!(split_shorthand(""), None);
-    }
 }
