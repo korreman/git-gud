@@ -61,3 +61,10 @@ Examples:
 - The shorthand doesn't try to cover all possible git commands and flags, there are simply too many.
 - Matching shorthand letters with the short forms of flags is not the first priority.
 - Typing speed may be prioritized over good mnemonics.
+
+## Installation
+... is left as an exercise for the user.
+
+Figure out how to get `git-gud` installed on the system,
+then run `git-gud --generate-installer | source` somewhere during Fish shell initialization,
+in order to register abbrevations.
