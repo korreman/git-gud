@@ -1,0 +1,16 @@
+#!/usr/bin/env fish
+
+abbr --add --function _git_expand_base_command g
+function _git_expand_base_command
+    if test (commandline) = g
+        echo git status
+    else
+        echo git
+    end
+end
+
+abbr --add _git_expansion --command git --regex '\S+' --function _git_expansion --set-cursor
+function _git_expansion
+    set -f shortcmd (string match --regex --groups-only '^git\s+(\S+?)(\s|;|\))?$' (commandline))
+    ${GIT_SHORTHAND} $shortcmd[1]
+end

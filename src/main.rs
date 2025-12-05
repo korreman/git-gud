@@ -1,8 +1,6 @@
 use std::fmt::Display;
 
-fn bail() -> ! {
-    std::process::exit(1);
-}
+const INSTALLER_SCRIPT: &str = include_str!("git_expand.fish.template");
 
 fn main() {
     let args = std::env::args();
@@ -10,11 +8,23 @@ fn main() {
         println!("usage: git-shorthand <SHORTHAND>");
         std::process::exit(1);
     }
-    let shorthand = args.skip(1).next().unwrap();
-    let Some(result) = expand(&shorthand) else {
-        bail();
-    };
-    println!("{result}");
+    let arg = args.skip(1).next().unwrap();
+    if arg == "--generate-installer" {
+        let executable = std::env::current_exe().expect("couldn't get own executable");
+        let replaced = INSTALLER_SCRIPT.replace("${GIT_SHORTHAND}", executable.to_str().unwrap());
+        print!("{replaced}");
+    } else if arg == "--generic-installer" {
+        print!("{INSTALLER_SCRIPT}");
+    } else {
+        let Some(result) = expand(&arg) else {
+            bail();
+        };
+        println!("{result}");
+    }
+}
+
+fn bail() -> ! {
+    std::process::exit(1);
 }
 
 fn expand(shorthand: &str) -> Option<String> {
@@ -199,12 +209,6 @@ impl Display for Command {
             Command::Worktree => "worktree",
         })
     }
-}
-
-pub use flags::FLAGS;
-mod flags {
-    use super::Command::{self, *};
-    pub const FLAGS: &[(Command, &[(char, &str)])] = &[];
 }
 
 fn split_shorthand(shorthand: &str) -> Option<(char, &str, &str)> {
