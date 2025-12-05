@@ -429,7 +429,15 @@ pub fn recurse_submodules() -> Node {
 }
 
 pub fn local_target() -> Node {
-    or(&[&term("-", " ", "HEAD~", Some(opt(number(""))))])
+    or(&[
+        &term("-", " ", "HEAD~", Some(opt(number("")))),
+        &term(
+            "@",
+            " ",
+            "HEAD@{",
+            Some(opt(seq(&[&number(""), &noneat("", "}")]))),
+        ),
+    ])
 }
 
 pub fn message() -> Node {
