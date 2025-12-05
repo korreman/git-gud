@@ -1,5 +1,5 @@
 # git-gud
-__A shorthand syntax for git commands that expands directly in your prompt.__
+__A Git shorthand syntax for the Fish shell that expands directly in the prompt.__
 
 ___This project is very much a WIP.
 All of the shorthand syntax is unstable and___ __will__ ___be changed on a whim.___
