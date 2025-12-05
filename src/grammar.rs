@@ -1,5 +1,59 @@
+use crate::helpers::*;
 use crate::tree::*;
 
+// Helper ASTs
+
+pub fn target_branch() -> Node {
+    or(&[
+        custom("h", " ", current_branch),
+        custom("u", " ", current_upstream),
+        custom("m", " ", main_branch),
+        custom("o", " ", main_remote_head),
+    ])
+}
+
+pub fn target_remote() -> Node {
+    or(&[
+        custom("h", " ", current_remote),
+        custom("o", " ", main_remote),
+    ])
+}
+
+pub fn recurse_submodules() -> Node {
+    flag("rs", "recurse-submodules")
+}
+
+pub fn target_commit() -> Node {
+    or(&[
+        term("-", " ", "HEAD~", Some(opt(number("")))),
+        term(
+            "@",
+            " ",
+            "HEAD@{",
+            Some(seq(&[number(""), noneat("", "}")])),
+        ),
+    ])
+}
+
+pub fn message() -> Node {
+    param("m", "message", noneat("=", "%"))
+}
+
+pub fn track() -> Node {
+    or(&[
+        flag("nt", "no-track"),
+        param(
+            "t",
+            "track",
+            opt(or(&[
+                param_variant("d", "direct"),
+                param_variant("i", "indirect"),
+            ])),
+        ),
+    ])
+}
+
+/// Generate the grammar for all commands.
 pub fn ast() -> Node {
     or(&[
         subcmd(
@@ -88,7 +142,7 @@ pub fn ast() -> Node {
                     flag("w", "ignore-all-space"),
                     param("u", "unified", number("=")),
                 ]),
-                opt(local_target()),
+                opt(target_commit()),
             ]),
         ),
         subcmd(
@@ -115,7 +169,7 @@ pub fn ast() -> Node {
                         flag("V", "verify"),
                         flag("v", "verbose"),
                     ]),
-                    opt(local_target()),
+                    opt(target_commit()),
                 ]),
             ]),
         ),
@@ -197,7 +251,7 @@ pub fn ast() -> Node {
                 flag("c", "continue"),
                 flag("a", "abort"),
                 flag("q", "quit"),
-                seq(&[set(&[]), opt(local_target())]),
+                seq(&[set(&[]), opt(target_commit())]),
             ]),
         ),
         subcmd(
@@ -228,6 +282,7 @@ pub fn ast() -> Node {
                 flag("v", "verify"),
                 flag("ffo", "ff-only"),
                 flag("ff", "ff"),
+                flag("f", "force"),
                 flag("nff", "no-ff"),
                 flag("nr", "no-rebase"),
                 flag("r", "rebase"),
@@ -255,21 +310,24 @@ pub fn ast() -> Node {
                     flag("nr", "no-refresh"),
                     flag("nr", "no-refresh"),
                 ]),
-                opt(local_target()),
+                opt(target_commit()),
             ]),
         ),
         subcmd(
             "s",
             "switch",
-            set(&[
-                flag("fc", "force-create"),
-                flag("f", "force"),
-                flag("C", "force-create"),
-                flag("c", "create"),
-                flag("d", "detach"),
-                flag("ng", "no-guess"),
-                flag("iow", "ignore-other-worktrees"),
-                track(),
+            seq(&[
+                set(&[
+                    flag("fc", "force-create"),
+                    flag("f", "force"),
+                    flag("C", "force-create"),
+                    flag("c", "create"),
+                    flag("d", "detach"),
+                    flag("ng", "no-guess"),
+                    flag("iow", "ignore-other-worktrees"),
+                    track(),
+                ]),
+                opt(target_branch()),
             ]),
         ),
         subcmd(
@@ -416,40 +474,6 @@ pub fn ast() -> Node {
                 subcmd("c", "clear", set(&[])),
                 subcmd("m", "create", set(&[])),
                 subcmd("t", "store", set(&[])),
-            ])),
-        ),
-    ])
-}
-
-pub fn recurse_submodules() -> Node {
-    flag("rs", "recurse-submodules")
-}
-
-pub fn local_target() -> Node {
-    or(&[
-        term("-", " ", "HEAD~", Some(opt(number("")))),
-        term(
-            "@",
-            " ",
-            "HEAD@{",
-            Some(opt(seq(&[number(""), noneat("", "}")]))),
-        ),
-    ])
-}
-
-pub fn message() -> Node {
-    param("m", "message", noneat("=", "%"))
-}
-
-pub fn track() -> Node {
-    or(&[
-        flag("nt", "no-track"),
-        param(
-            "t",
-            "track",
-            opt(or(&[
-                param_variant("d", "direct"),
-                param_variant("i", "indirect"),
             ])),
         ),
     ])

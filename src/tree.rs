@@ -185,6 +185,14 @@ pub fn number_or_zero(prefix: Str) -> Node {
     }
 }
 
+pub fn custom(shorthand: Str, prefix: Str, func: fn() -> Option<String>) -> Node {
+    Node::Custom {
+        shorthand,
+        prefix,
+        func,
+    }
+}
+
 // Specific builders
 
 pub fn subcmd(shorthand: Str, expansion: Str, child: Node) -> Node {

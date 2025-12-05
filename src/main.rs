@@ -3,6 +3,7 @@ use anyhow::{Context, Result, bail};
 const INSTALLER_SCRIPT: &str = include_str!("git_expand.fish.template");
 
 mod grammar;
+mod helpers;
 mod tree;
 
 fn main() {
