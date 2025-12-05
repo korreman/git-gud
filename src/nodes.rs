@@ -161,7 +161,7 @@ pub fn noneat(prefix: Str, expansion: Str) -> Node {
 }
 
 pub fn term(shorthand: Str, prefix: Str, expansion: Str, child: Option<Node>) -> Node {
-    let child = child.map(|c| Box::new(c));
+    let child = child.map(Box::new);
     Node::Term {
         shorthand,
         prefix,
@@ -196,4 +196,101 @@ pub fn flag(shorthand: Str, expansion: Str) -> Node {
 
 pub fn param(shorthand: Str, expansion: Str, child: Node) -> Node {
     term(shorthand, " --", expansion, Some(child))
+}
+
+#[cfg(test)]
+mod tests {
+    use itertools::Itertools;
+
+    use super::*;
+
+    impl Node {
+        pub fn enumerate_shorthand(&self) -> Vec<String> {
+            self.enumerate_shorthand_helper("".to_owned())
+        }
+
+        fn enumerate_shorthand_helper(&self, mut head: String) -> Vec<String> {
+            let heads = self.enumerate_shorthand_helper_2(head);
+            println!("{heads:?}");
+            heads
+        }
+
+        fn enumerate_shorthand_helper_2(&self, mut head: String) -> Vec<String> {
+            match self {
+                Node::Opt(node) => {
+                    let mut heads = Vec::new();
+                    heads.push(head.to_owned());
+                    heads.extend(node.enumerate_shorthand_helper(head).into_iter());
+                    heads
+                }
+                Node::Seq(nodes) => {
+                    let mut heads = vec![head.to_owned()];
+                    let mut buffer = vec![];
+                    for node in nodes {
+                        for head in heads.drain(..) {
+                            let new_heads = node.enumerate_shorthand_helper(head);
+                            buffer.extend(new_heads.into_iter());
+                        }
+                        std::mem::swap(&mut heads, &mut buffer);
+                    }
+                    heads
+                }
+                Node::Or(nodes) => {
+                    let mut heads = vec![];
+                    for node in nodes {
+                        heads.extend(node.enumerate_shorthand_helper(head.clone()).into_iter());
+                    }
+                    heads
+                }
+                Node::Set(nodes) => {
+                    let mut heads = vec![];
+                    for set in nodes.clone().into_iter().powerset() {
+                        let k = set.len();
+                        for perm in set.into_iter().permutations(k) {
+                            let new_heads =
+                                Node::Seq(perm).enumerate_shorthand_helper(head.clone());
+                            heads.extend(new_heads.into_iter());
+                        }
+                    }
+                    heads
+                }
+                Node::NonEat { .. } => {
+                    vec![head]
+                }
+                Node::Term {
+                    shorthand, child, ..
+                } => {
+                    head.push_str(shorthand);
+                    let Some(child) = child else {
+                        return vec![head];
+                    };
+                    child.enumerate_shorthand_helper(head)
+                }
+                Node::Number { empty_is_zero, .. } => {
+                    let mut heads = if *empty_is_zero {
+                        vec![head.clone()]
+                    } else {
+                        vec![]
+                    };
+                    head.push('0');
+                    heads.push(head);
+                    heads
+                }
+                Node::Custom { shorthand, .. } => {
+                    head.push_str(shorthand);
+                    vec![head]
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn nonambiguity() {
+        let mut all_commands = crate::ast::ast().enumerate_shorthand();
+        let len = all_commands.len();
+        all_commands.sort();
+        all_commands.dedup();
+        println!("{all_commands:?}");
+        assert_eq!(len, all_commands.len(), "grammar shouldn't be ambiguous");
+    }
 }
