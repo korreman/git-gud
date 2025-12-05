@@ -100,11 +100,12 @@ impl Node {
                 'outer: loop {
                     for (idx, node) in nodes.iter().enumerate() {
                         if parsed[idx] {
-                            continue 'outer;
+                            continue;
                         }
                         if let Some(tail) = node.expand(input, output) {
                             parsed[idx] = true;
                             input = tail;
+                            continue 'outer;
                         }
                     }
                     break;
@@ -192,6 +193,10 @@ pub fn subcmd(shorthand: Str, expansion: Str, child: Node) -> Node {
 
 pub fn flag(shorthand: Str, expansion: Str) -> Node {
     term(shorthand, " --", expansion, None)
+}
+
+pub fn shortflag(shorthand: Str, expansion: Str) -> Node {
+    term(shorthand, " -", expansion, None)
 }
 
 pub fn param(shorthand: Str, expansion: Str, child: Node) -> Node {
