@@ -152,6 +152,10 @@ pub fn set(nodes: &[&Node]) -> Node {
     Node::Set(nodes.iter().map(|n| (*n).clone()).collect())
 }
 
+pub fn param_variant(shorthand: Str, expansion: Str) -> Node {
+    term(shorthand, "=", expansion, None)
+}
+
 pub fn noneat(prefix: Str, expansion: Str) -> Node {
     Node::NonEat { prefix, expansion }
 }
