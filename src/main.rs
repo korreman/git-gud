@@ -55,7 +55,7 @@ fn expand(shorthand: &str, terminate: bool) -> Result<String> {
         let (add_flags, tail) = flags.split_at(idx);
         let flags = cmd.expand_flags(add_flags, target, true)?;
         let cmd2 = expand(tail, terminate)?;
-        Ok(format!("{cmd}{flags}; git {cmd2}"))
+        Ok(format!("{cmd}{flags} && git {cmd2}"))
     } else {
         let flags = cmd.expand_flags(flags, target, terminate)?;
         Ok(format!("{cmd}{flags}"))
