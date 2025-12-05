@@ -291,7 +291,7 @@ mod tests {
 
     #[test]
     fn nonambiguity() {
-        let mut all_commands = crate::ast::ast().enumerate_shorthand();
+        let mut all_commands = crate::grammar::ast().enumerate_shorthand();
         let len = all_commands.len();
         all_commands.sort();
         all_commands.dedup();

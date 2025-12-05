@@ -2,8 +2,8 @@ use anyhow::{Context, Result, bail};
 
 const INSTALLER_SCRIPT: &str = include_str!("git_expand.fish.template");
 
-mod ast;
-mod nodes;
+mod grammar;
+mod tree;
 
 fn main() {
     if let Err(e) = run() {
@@ -28,7 +28,7 @@ fn run() -> Result<()> {
     } else if arg == "--generic-installer" {
         print!("{INSTALLER_SCRIPT}");
     } else {
-        let ast = ast::ast();
+        let ast = grammar::ast();
         let mut result = String::new();
         if let Some(tail) = ast.expand(&arg, &mut result)
             && tail.is_empty()
