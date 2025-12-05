@@ -31,8 +31,17 @@ fn expand(shorthand: &str) -> Option<String> {
     let (cmd, rest) = Command::parse(shorthand)?;
     let (flags, target) = split_flags_from_target(rest)?;
     let target = parse_target(target)?;
-    let flags = cmd.expand_flags(flags, target);
-    Some(format!("{cmd}{flags}"))
+    if cmd == Command::Add
+        && let Some(idx) = flags.find('c')
+    {
+        let (add_flags, tail) = flags.split_at(idx);
+        let flags = cmd.expand_flags(add_flags, target);
+        let cmd2 = expand(tail)?;
+        Some(format!("{cmd}{flags} && git {cmd2}"))
+    } else {
+        let flags = cmd.expand_flags(flags, target);
+        Some(format!("{cmd}{flags}"))
+    }
 }
 
 // TODO: Ensure that real git commands aren't being replaced.
