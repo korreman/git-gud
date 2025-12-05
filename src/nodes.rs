@@ -141,15 +141,15 @@ pub fn opt(node: Node) -> Node {
     Node::Opt(Box::new(node))
 }
 
-pub fn seq(nodes: &[&Node]) -> Node {
+pub fn seq(nodes: &[Node]) -> Node {
     Node::Seq(nodes.iter().map(|n| (*n).clone()).collect())
 }
 
-pub fn or(nodes: &[&Node]) -> Node {
+pub fn or(nodes: &[Node]) -> Node {
     Node::Or(nodes.iter().map(|n| (*n).clone()).collect())
 }
 
-pub fn set(nodes: &[&Node]) -> Node {
+pub fn set(nodes: &[Node]) -> Node {
     Node::Set(nodes.iter().map(|n| (*n).clone()).collect())
 }
 
