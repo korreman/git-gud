@@ -21,7 +21,7 @@ pub fn current_upstream() -> Option<String> {
 }
 
 /// Get the main branch (HEAD) of the upstream remote of the current branch.
-pub fn current_remote_head() -> Option<String> {
+pub fn _current_remote_head() -> Option<String> {
     remote_head(&main_remote()?)
 }
 

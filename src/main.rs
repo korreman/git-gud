@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use log::debug;
 
 const INSTALLER_SCRIPT: &str = include_str!("git_expand.fish.template");
 
@@ -7,6 +8,8 @@ mod helpers;
 mod tree;
 
 fn main() {
+    env_logger::init();
+
     if let Err(e) = run() {
         println!("err: {e}");
         std::process::exit(1);
@@ -30,6 +33,7 @@ fn run() -> Result<()> {
         print!("{INSTALLER_SCRIPT}");
     } else {
         let ast = grammar::ast();
+        debug!("{ast:#?}");
         let mut result = String::new();
         if let Some(tail) = ast.expand(&arg, &mut result)
             && tail.is_empty()

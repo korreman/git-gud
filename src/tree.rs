@@ -1,90 +1,75 @@
 pub type Str = &'static str;
 
+pub use Node::*;
+use anyhow::Result;
+
+/// Data structure for constructing grammars.
 #[derive(Clone, Debug)]
 pub enum Node {
-    Opt(Box<Node>),
-    Seq(Vec<Node>),
+    /// Consume the given string and produce nothing.
+    Eat(Str),
+    /// Eat nothing and produce the given string.
+    Emit(Str),
+    /// Eat a number and produce it.
+    Number,
+    /// Run a function and produce its output.
+    Custom(fn() -> Option<String>),
+    /// Try to run each child until one succeeds.
     Or(Vec<Node>),
+    /// Run every child, fail if any child fails.
+    Seq(Vec<Node>),
+    /// Repeatedly try running each child, one after the other.
+    /// When a child succeeds, it will no longer be tried.
+    /// Finishes when none of the remaining children succeed.
+    /// Always succeeds.
     Set(Vec<Node>),
-    NonEat {
-        prefix: Str,
-        expansion: Str,
-    },
-    Term {
-        shorthand: Str,
-        prefix: Str,
-        expansion: Str,
-        child: Option<Box<Node>>,
-    },
-    Number {
-        prefix: Str,
-        empty_is_zero: bool,
-    },
-    Custom {
-        shorthand: Str,
-        prefix: Str,
-        func: fn() -> Option<String>,
-    },
 }
 
 impl Node {
+    /// Normalize the grammar:
+    /// - Collapse structures where possible.
+    /// - Sort elements such that longer sequences are matched before shorter ones.
+    ///   Prevents shadowing.
+    pub fn _preprocess(&mut self) -> Result<()> {
+        todo!()
+    }
+
+    /// Identify and report ambiguities in the grammar.
+    ///
+    /// For it to be usable and memorable, any grammar needs unambiguous.
+    /// That is, it shouldn't be possible for an expression to be interpreted in multiple ways.
+    /// I also think that it should fulfill some concept of a local unambiguity property.
+    /// The entire output shouldn't be able to depend on the final character.
+    fn _find_ambiguities(&self) -> Result<(), Vec<(String, Vec<String>)>> {
+        todo!()
+    }
+
     pub fn expand<'a>(&self, input: &'a str, output: &mut String) -> Option<&'a str> {
         match self {
-            Node::NonEat { prefix, expansion } => {
-                output.push_str(prefix);
-                output.push_str(expansion);
-                Some(input)
-            }
-            Node::Term {
-                shorthand,
-                prefix,
-                expansion,
-                child,
-            } => {
+            Node::Eat(shorthand) => {
                 let tail = input.strip_prefix(shorthand)?;
-                let backtrack_len = output.len();
-                output.push_str(prefix);
-                output.push_str(expansion);
-                if let Some(child) = child {
-                    let Some(tail2) = child.expand(tail, output) else {
-                        output.truncate(backtrack_len);
-                        return None;
-                    };
-                    return Some(tail2);
-                }
                 Some(tail)
             }
-            Node::Number {
-                empty_is_zero,
-                prefix,
-            } => {
+            Node::Emit(result) => {
+                output.push_str(result);
+                Some(input)
+            }
+            Node::Number => {
                 let split_idx = input
                     .char_indices()
                     .find_map(|(idx, c)| if c.is_ascii_digit() { None } else { Some(idx) })
                     .unwrap_or(input.len());
-                let (number, tail) = if split_idx == 0 {
-                    if *empty_is_zero {
-                        ("0", input)
-                    } else {
-                        return None;
-                    }
-                } else {
-                    input.split_at(split_idx)
-                };
-                output.push_str(prefix);
+                if split_idx == 0 {
+                    return None;
+                }
+                let (number, tail) = input.split_at(split_idx);
                 output.push_str(number);
                 Some(tail)
             }
-            Node::Custom {
-                shorthand,
-                prefix,
-                func,
-            } => {
-                let tail = input.strip_prefix(shorthand)?;
+            Node::Custom(func) => {
                 let expansion = func()?;
-                output.push_str(prefix);
                 output.push_str(&expansion);
-                Some(tail)
+                Some(input)
             }
             Node::Or(nodes) => {
                 for node in nodes {
@@ -93,6 +78,18 @@ impl Node {
                     }
                 }
                 None
+            }
+            Node::Seq(nodes) => {
+                let backtrack_len = output.len();
+                let mut input = input;
+                for node in nodes {
+                    let Some(tail) = node.expand(input, output) else {
+                        output.truncate(backtrack_len);
+                        return None;
+                    };
+                    input = tail;
+                }
+                Some(input)
             }
             Node::Set(nodes) => {
                 let mut input = input;
@@ -112,84 +109,84 @@ impl Node {
                 }
                 Some(input)
             }
-            Node::Seq(nodes) => {
-                let backtrack_len = output.len();
-                let mut input = input;
-                for node in nodes {
-                    let Some(tail) = node.expand(input, output) else {
-                        output.truncate(backtrack_len);
-                        return None;
-                    };
-                    input = tail;
-                }
-                Some(input)
-            }
-            Node::Opt(node) => {
-                if let Some(tail) = node.expand(input, output) {
-                    Some(tail)
-                } else {
-                    Some(input)
-                }
-            }
         }
     }
 }
 
-// Convenience builders
+// Useful combinators
+pub fn word(i: Str, o: Str) -> Node {
+    Seq(vec![Eat(i), Emit(o)])
+}
+
+pub fn prefix(p: Str, node: Node) -> Node {
+    Seq(vec![Emit(p), node])
+}
+
+pub fn flag(i: Str, o: Str) -> Node {
+    prefix("--", word(i, o))
+}
+
+pub fn f(i: Str, o: Str) -> Node {
+    prefix("-", word(i, o))
+}
+
+pub fn or<const N: usize>(nodes: [Node; N]) -> Node {
+    Or(nodes.to_vec())
+}
+
+pub fn seq<const N: usize>(nodes: [Node; N]) -> Node {
+    Seq(nodes.to_vec())
+}
 
 pub fn opt(node: Node) -> Node {
-    Node::Opt(Box::new(node))
+    Set(vec![node])
 }
 
-pub fn seq(nodes: &[Node]) -> Node {
-    Node::Seq(nodes.iter().map(|n| (*n).clone()).collect())
+pub fn set<const N: usize>(nodes: [Node; N]) -> Node {
+    Set(nodes.to_vec())
 }
 
-pub fn or(nodes: &[Node]) -> Node {
-    Node::Or(nodes.iter().map(|n| (*n).clone()).collect())
+pub fn prefix_or<const N: usize>(p: Str, nodes: [Node; N]) -> Node {
+    let nodes = nodes.into_iter().map(|node| prefix(p, node)).collect();
+    Or(nodes)
 }
 
-pub fn set(nodes: &[Node]) -> Node {
-    Node::Set(nodes.iter().map(|n| (*n).clone()).collect())
+pub fn _prefix_seq<const N: usize>(p: Str, nodes: [Node; N]) -> Node {
+    let nodes = nodes.into_iter().flat_map(|node| [Emit(p), node]).collect();
+    Seq(nodes)
 }
 
-pub fn param_variant(shorthand: Str, expansion: Str) -> Node {
-    term(shorthand, "=", expansion, None)
+pub fn prefix_set<const N: usize>(p: Str, nodes: [Node; N]) -> Node {
+    let nodes = nodes.into_iter().map(|node| prefix(p, node)).collect();
+    Set(nodes)
 }
 
-pub fn noneat(prefix: Str, expansion: Str) -> Node {
-    Node::NonEat { prefix, expansion }
+pub fn number_or_zero() -> Node {
+    or([Number, Emit("0")])
 }
+
+pub fn map_custom(i: Str, func: fn() -> Option<String>) -> Node {
+    seq([Eat(i), Custom(func)])
+}
+
+pub fn param(i: Str, o: Str, arg: Node) -> Node {
+    seq([Emit("--"), word(i, o), prefix("=", arg)])
+}
+
+pub fn param_opt(i: Str, o: Str, arg: Node) -> Node {
+    seq([Emit("--"), word(i, o), opt(prefix("=", arg))])
+}
+
+/*
+// Convenience builders
 
 pub fn term(shorthand: Str, prefix: Str, expansion: Str, child: Option<Node>) -> Node {
     let child = child.map(Box::new);
-    Node::Term {
+    Node::Eat {
         shorthand,
         prefix,
         expansion,
         child,
-    }
-}
-
-pub fn number(prefix: Str) -> Node {
-    Node::Number {
-        prefix,
-        empty_is_zero: false,
-    }
-}
-
-pub fn number_or_zero(prefix: Str) -> Node {
-    Node::Number {
-        prefix,
-        empty_is_zero: true,
-    }
-}
-
-pub fn custom(shorthand: Str, prefix: Str, func: fn() -> Option<String>) -> Node {
-    Node::Custom {
-        shorthand,
-        prefix,
-        func,
     }
 }
 
@@ -199,111 +196,4 @@ pub fn subcmd(shorthand: Str, expansion: Str, child: Node) -> Node {
     term(shorthand, " ", expansion, Some(child))
 }
 
-pub fn flag(shorthand: Str, expansion: Str) -> Node {
-    term(shorthand, " --", expansion, None)
-}
-
-pub fn shortflag(shorthand: Str, expansion: Str) -> Node {
-    term(shorthand, " -", expansion, None)
-}
-
-pub fn param(shorthand: Str, expansion: Str, child: Node) -> Node {
-    term(shorthand, " --", expansion, Some(child))
-}
-
-#[cfg(test)]
-mod tests {
-    use itertools::Itertools;
-
-    use super::*;
-
-    impl Node {
-        pub fn enumerate_shorthand(&self) -> Vec<String> {
-            self.enumerate_shorthand_helper("".to_owned())
-        }
-
-        fn enumerate_shorthand_helper(&self, mut head: String) -> Vec<String> {
-            let heads = self.enumerate_shorthand_helper_2(head);
-            println!("{heads:?}");
-            heads
-        }
-
-        fn enumerate_shorthand_helper_2(&self, mut head: String) -> Vec<String> {
-            match self {
-                Node::Opt(node) => {
-                    let mut heads = Vec::new();
-                    heads.push(head.to_owned());
-                    heads.extend(node.enumerate_shorthand_helper(head).into_iter());
-                    heads
-                }
-                Node::Seq(nodes) => {
-                    let mut heads = vec![head.to_owned()];
-                    let mut buffer = vec![];
-                    for node in nodes {
-                        for head in heads.drain(..) {
-                            let new_heads = node.enumerate_shorthand_helper(head);
-                            buffer.extend(new_heads.into_iter());
-                        }
-                        std::mem::swap(&mut heads, &mut buffer);
-                    }
-                    heads
-                }
-                Node::Or(nodes) => {
-                    let mut heads = vec![];
-                    for node in nodes {
-                        heads.extend(node.enumerate_shorthand_helper(head.clone()).into_iter());
-                    }
-                    heads
-                }
-                Node::Set(nodes) => {
-                    let mut heads = vec![];
-                    for set in nodes.clone().into_iter().powerset() {
-                        let k = set.len();
-                        for perm in set.into_iter().permutations(k) {
-                            let new_heads =
-                                Node::Seq(perm).enumerate_shorthand_helper(head.clone());
-                            heads.extend(new_heads.into_iter());
-                        }
-                    }
-                    heads
-                }
-                Node::NonEat { .. } => {
-                    vec![head]
-                }
-                Node::Term {
-                    shorthand, child, ..
-                } => {
-                    head.push_str(shorthand);
-                    let Some(child) = child else {
-                        return vec![head];
-                    };
-                    child.enumerate_shorthand_helper(head)
-                }
-                Node::Number { empty_is_zero, .. } => {
-                    let mut heads = if *empty_is_zero {
-                        vec![head.clone()]
-                    } else {
-                        vec![]
-                    };
-                    head.push('0');
-                    heads.push(head);
-                    heads
-                }
-                Node::Custom { shorthand, .. } => {
-                    head.push_str(shorthand);
-                    vec![head]
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn nonambiguity() {
-        let mut all_commands = crate::grammar::ast().enumerate_shorthand();
-        let len = all_commands.len();
-        all_commands.sort();
-        all_commands.dedup();
-        println!("{all_commands:?}");
-        assert_eq!(len, all_commands.len(), "grammar shouldn't be ambiguous");
-    }
-}
+*/
