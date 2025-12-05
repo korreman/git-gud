@@ -1,15 +1,18 @@
+use anyhow::Result;
 use std::fmt::Display;
 
 const INSTALLER_SCRIPT: &str = include_str!("git_expand.fish.template");
 
-fn main() {
+fn main() -> Result<()> {
     let args = std::env::args();
     if args.len() != 2 {
         println!("usage: git-shorthand <SHORTHAND>");
         std::process::exit(1);
     }
     let arg = args.skip(1).next().unwrap();
-    if arg == "--generate-installer" {
+    if is_real_command(&arg)? {
+        bail()
+    } else if arg == "--generate-installer" {
         let executable = std::env::current_exe().expect("couldn't get own executable");
         let replaced = INSTALLER_SCRIPT.replace("${GIT_SHORTHAND}", executable.to_str().unwrap());
         print!("{replaced}");
@@ -21,6 +24,21 @@ fn main() {
         };
         println!("{result}");
     }
+    Ok(())
+}
+
+fn is_real_command(shorthand: &str) -> Result<bool> {
+    let mut cmd = std::process::Command::new("git");
+    cmd.args(["help", "--all"]);
+    let output = String::try_from(cmd.output()?.stdout)?;
+    for line in output.lines() {
+        if let Some(rest) = line.strip_prefix("   ")
+            && rest.starts_with(shorthand)
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 fn bail() -> ! {
@@ -37,14 +55,12 @@ fn expand(shorthand: &str) -> Option<String> {
         let (add_flags, tail) = flags.split_at(idx);
         let flags = cmd.expand_flags(add_flags, target);
         let cmd2 = expand(tail)?;
-        Some(format!("{cmd}{flags} && git {cmd2}"))
+        Some(format!("{cmd}{flags}; git {cmd2}"))
     } else {
         let flags = cmd.expand_flags(flags, target);
         Some(format!("{cmd}{flags}"))
     }
 }
-
-// TODO: Ensure that real git commands aren't being replaced.
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 enum Command {
