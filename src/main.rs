@@ -28,9 +28,9 @@ fn bail() -> ! {
 }
 
 fn expand(shorthand: &str) -> Option<String> {
-    let (cmd, flags, target) = split_shorthand(shorthand)?;
-    let cmd = Command::parse(cmd)?;
-    let target = parse_target(target);
+    let (cmd, rest) = Command::parse(shorthand)?;
+    let (flags, target) = split_flags_from_target(rest)?;
+    let target = parse_target(target)?;
     let flags = cmd.expand_flags(flags, target);
     Some(format!("{cmd}{flags}"))
 }
@@ -39,20 +39,20 @@ fn expand(shorthand: &str) -> Option<String> {
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 enum Command {
-    Add, //
+    Add,
     Blame,
-    Branch, //
+    Branch,
     Checkout,
     Clean,
     Clone,
-    Commit, //
-    Diff,   //
-    Fetch,  //
-    Init,   //
-    Log,    //
-    Merge,  //
-    Pull,   //
-    Push,   //
+    Commit,
+    Diff,
+    Fetch,
+    Init,
+    Log,
+    Merge,
+    Pull,
+    Push,
     Rebase,
     Reflog,
     Reset,
@@ -61,40 +61,50 @@ enum Command {
     Stash,
     Status,
     Switch,
-    Tag,      //
-    Worktree, //
+    Tag,
+    Worktree,
 }
 
 impl Command {
-    fn parse(cmd: char) -> Option<Self> {
-        Some(match cmd {
-            'a' => Self::Add,
-            'b' => Self::Branch,
-            'c' => Self::Commit,
-            'd' => Self::Diff,
-            'e' => todo!(),
-            'f' => Self::Fetch,
-            'g' => todo!(),
-            'h' => Self::Show,
-            'i' => Self::Init,
-            'j' => todo!(),
-            'l' => Self::Log,
-            'm' => Self::Merge,
-            'n' => todo!(),
-            'o' => todo!(),
-            'p' => Self::Push,
-            'q' => Self::Pull,
-            'r' => Self::Reset,
-            's' => Self::Status, // this could also be 'show' or 'switch'
-            't' => Self::Tag,
-            'u' => todo!(), // this could be reset (undo)
-            'v' => todo!(), // this could be show (view)
-            'w' => Self::Worktree,
-            'x' => todo!(),
-            'y' => todo!(),
-            'z' => todo!(),
-            _ => return None,
-        })
+    const COMMAND_PREFIX: &[(&str, Command)] = &[
+        ("a", Self::Add),
+        ("bl", Self::Blame),
+        ("b", Self::Branch),
+        ("c", Self::Commit),
+        ("d", Self::Diff),
+        ("e", Self::Rebase), // r__e__base
+        ("f", Self::Fetch),
+        ("g", Self::Checkout), // goto
+        //("h", todo!()),
+        ("i", Self::Init),
+        //("j", todo!()),
+        ("k", Self::Clone),
+        ("l", Self::Log),
+        ("m", Self::Merge),
+        //("n", todo!()),
+        //("o", todo!()),
+        ("p", Self::Push),
+        ("q", Self::Pull), // visually reversed 'p', on the opposite end of keyboard
+        ("rl", Self::Reflog), // __r__ef__l__og
+        ("r", Self::Reset),
+        ("st", Self::Status),
+        ("s", Self::Switch),
+        ("t", Self::Tag),
+        ("u", Self::Restore), // undo
+        ("v", Self::Show),    // view
+        ("w", Self::Worktree),
+        ("x", Self::Clean),
+        //("y", todo!()),
+        ("z", Self::Stash), // ztash, similar to marks in modal editors
+    ];
+
+    fn parse(shortcmd: &str) -> Option<(Command, &str)> {
+        for (prefix, cmd) in Self::COMMAND_PREFIX {
+            if let Some(rest) = shortcmd.strip_prefix(prefix) {
+                return Some((*cmd, rest));
+            }
+        }
+        None
     }
 
     fn expand_flags(&self, flags: &str, target: Option<String>) -> String {
@@ -121,7 +131,21 @@ impl Command {
                 Command::Branch => todo!(),
                 Command::Checkout => todo!(),
                 Command::Clean => todo!(),
-                Command::Clone => todo!(),
+                Command::Clone => match flag {
+                    'b' => "--bare",
+                    'd' => "--dissociate",
+                    'h' => "--shared",
+                    'l' => "--local",
+                    'm' => "--mirror",
+                    'q' => "--quiet",
+                    's' => "--sparse",
+                    'v' => "--verbose",
+                    'r' => {
+                        end_flags.push("--reference=%");
+                        continue;
+                    }
+                    _ => bail(),
+                },
                 Command::Commit => match flag {
                     'a' => "--amend",
                     'i' => "--include",
@@ -139,7 +163,20 @@ impl Command {
                 },
                 Command::Diff => todo!(),
                 Command::Fetch => todo!(),
-                Command::Init => todo!(),
+                Command::Init => match flag {
+                    'b' => "--bare",
+                    'h' => "--object-format=sha256",
+                    'i' => {
+                        end_flags.push("--initial-branch=%");
+                        continue;
+                    }
+                    'q' => "--quiet",
+                    's' => {
+                        end_flags.push("--separate-git-dir=%");
+                        continue;
+                    }
+                    _ => bail(),
+                },
                 Command::Log => todo!(),
                 Command::Merge => todo!(),
                 Command::Pull => todo!(),
@@ -147,12 +184,12 @@ impl Command {
                 Command::Rebase => todo!(),
                 Command::Reflog => todo!(),
                 Command::Reset => match flag {
-                    'q' => "--quiet",
-                    's' => "--soft",
                     'h' => "--hard",
-                    'm' => "--merge",
                     'k' => "--keep",
+                    'm' => "--merge",
+                    'q' => "--quiet",
                     'r' => "--recurse-submodules",
+                    's' => "--soft",
                     _ => bail(),
                 },
                 Command::Restore => todo!(),
@@ -211,27 +248,28 @@ impl Display for Command {
     }
 }
 
-fn split_shorthand(shorthand: &str) -> Option<(char, &str, &str)> {
-    let cmd: char = shorthand.chars().next()?;
-    let tail = shorthand.get(1..).unwrap_or("");
-    let split_idx = tail.find('-');
+fn split_flags_from_target(input: &str) -> Option<(&str, &str)> {
+    let split_idx = input.find(['-', '/']);
     let (flags, target) = match split_idx {
-        Some(i) => tail.split_at(i),
-        None => (tail, ""),
+        Some(i) => input.split_at(i),
+        None => (input, ""),
     };
-    Some((cmd, flags, target))
+    Some((flags, target))
 }
 
-fn parse_target(target: &str) -> Option<String> {
+fn parse_target(target: &str) -> Option<Option<String>> {
     // Empty target is no target
     if target.is_empty() {
-        return None;
+        return Some(None);
     }
 
     // Parent of HEAD, multiple tildes
     if target.chars().all(|c| c == '-') {
-        let count = target.chars().count();
-        return Some(format!("HEAD~{count}"));
+        let mut result = "HEAD".to_string();
+        for _ in target.chars() {
+            result.push('~');
+        }
+        return Some(Some(result));
     }
 
     // Parent of HEAD, numbered
@@ -239,10 +277,17 @@ fn parse_target(target: &str) -> Option<String> {
     let rest_is_digits = target.chars().skip(1).all(|c| c.is_ascii_digit());
     if first_is_minus && rest_is_digits {
         let number: u32 = str::parse(&target[1..]).ok()?;
-        return Some(format!("HEAD~{number}"));
-    } else {
-        return None;
+        return Some(Some(format!("HEAD~{number}")));
     }
+
+    // Reflog entry, numbered
+    let first_is_slash = target.chars().next().unwrap() == '/';
+    if first_is_slash && rest_is_digits {
+        let number: u32 = str::parse(&target[1..]).ok()?;
+        return Some(Some(format!("HEAD@{{{number}}}")));
+    }
+
+    return None;
 }
 
 #[cfg(test)]
