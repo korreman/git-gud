@@ -1,27 +1,33 @@
-use anyhow::Result;
+use anyhow::{Context, Result, anyhow, bail};
 use std::fmt::Display;
 
 const INSTALLER_SCRIPT: &str = include_str!("git_expand.fish.template");
 
-fn main() -> Result<()> {
-    let args = std::env::args();
-    if args.len() != 2 {
-        println!("usage: git-shorthand <SHORTHAND>");
+fn main() {
+    if let Err(e) = run() {
+        println!("err: {e}");
         std::process::exit(1);
     }
-    let arg = args.skip(1).next().unwrap();
+}
+
+fn run() -> Result<()> {
+    let mut args = std::env::args();
+    args.next(); // skip binary name
+    let arg = args.next().context("missing first argument")?;
     if is_real_command(&arg)? {
-        bail()
+        bail!("'{arg}' is a real git command");
     } else if arg == "--generate-installer" {
-        let executable = std::env::current_exe().expect("couldn't get own executable");
-        let replaced = INSTALLER_SCRIPT.replace("${GIT_SHORTHAND}", executable.to_str().unwrap());
+        let executable = std::env::current_exe().context("couldn't get own executable path")?;
+        let replaced = INSTALLER_SCRIPT.replace(
+            "${GIT_SHORTHAND}",
+            executable.to_str().context("executable path isn't UTF-8")?,
+        );
         print!("{replaced}");
     } else if arg == "--generic-installer" {
         print!("{INSTALLER_SCRIPT}");
     } else {
-        let Some(result) = expand(&arg) else {
-            bail();
-        };
+        let last_char = args.next().context("missing second argument")?;
+        let result = expand(&arg, last_char != " ")?;
         println!("{result}");
     }
     Ok(())
@@ -32,33 +38,27 @@ fn is_real_command(shorthand: &str) -> Result<bool> {
     cmd.args(["help", "--all"]);
     let output = String::try_from(cmd.output()?.stdout)?;
     for line in output.lines() {
-        if let Some(rest) = line.strip_prefix("   ")
-            && rest.starts_with(shorthand)
-        {
+        if line.starts_with(&["   ", shorthand, " "].join("")) {
             return Ok(true);
         }
     }
     Ok(false)
 }
 
-fn bail() -> ! {
-    std::process::exit(1);
-}
-
-fn expand(shorthand: &str) -> Option<String> {
+fn expand(shorthand: &str, terminate: bool) -> Result<String> {
     let (cmd, rest) = Command::parse(shorthand)?;
-    let (flags, target) = split_flags_from_target(rest)?;
+    let (flags, target) = split_flags_from_target(rest);
     let target = parse_target(target)?;
     if cmd == Command::Add
         && let Some(idx) = flags.find('c')
     {
         let (add_flags, tail) = flags.split_at(idx);
-        let flags = cmd.expand_flags(add_flags, target);
-        let cmd2 = expand(tail)?;
-        Some(format!("{cmd}{flags}; git {cmd2}"))
+        let flags = cmd.expand_flags(add_flags, target, true)?;
+        let cmd2 = expand(tail, terminate)?;
+        Ok(format!("{cmd}{flags}; git {cmd2}"))
     } else {
-        let flags = cmd.expand_flags(flags, target);
-        Some(format!("{cmd}{flags}"))
+        let flags = cmd.expand_flags(flags, target, terminate)?;
+        Ok(format!("{cmd}{flags}"))
     }
 }
 
@@ -123,25 +123,28 @@ impl Command {
         ("z", Self::Stash), // ztash, similar to marks in modal editors
     ];
 
-    fn parse(shortcmd: &str) -> Option<(Command, &str)> {
+    fn parse(shortcmd: &str) -> Result<(Command, &str)> {
         for (prefix, cmd) in Self::COMMAND_PREFIX {
             if let Some(rest) = shortcmd.strip_prefix(prefix) {
-                return Some((*cmd, rest));
+                return Ok((*cmd, rest));
             }
         }
-        None
+        Err(anyhow!("doesn't match any command prefix"))
     }
 
-    fn expand_flags(&self, flags: &str, target: Option<String>) -> String {
+    fn expand_flags(
+        &self,
+        flags: &str,
+        mut target: Option<String>,
+        terminate: bool,
+    ) -> Result<String> {
         let mut body = Vec::new();
         let mut end = Vec::new();
         for flag in flags.chars() {
+            let flag_err = format!("unrecognized flag '{flag}' for '{self}' command");
             let expanded_flag = match self {
                 Command::Add => match flag {
-                    'a' => {
-                        end.push(":/");
-                        "--all"
-                    }
+                    'a' => "--all",
                     'e' => "--edit",
                     'f' => "--force",
                     'i' => "--interactive",
@@ -150,14 +153,20 @@ impl Command {
                     'p' => "--patch",
                     'u' => "--update",
                     'v' => "--verbose",
-                    _ => bail(),
+                    '.' => {
+                        if target.replace(String::from(".")).is_some() {
+                            bail!("both a target and '.' specified in add command")
+                        }
+                        continue;
+                    }
+                    _ => bail!(flag_err),
                 },
                 Command::Blame => match flag {
                     'l' => {
                         end.push("-L %");
                         continue;
                     }
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Branch => match flag {
                     'd' => "--delete",
@@ -175,13 +184,13 @@ impl Command {
                     'q' => "--quiet",
                     't' => "--track",
                     'e' => "--edit-description",
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Checkout => match flag {
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Clean => match flag {
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Clone => match flag {
                     'b' => "--bare",
@@ -196,7 +205,7 @@ impl Command {
                         end.push("--reference=%");
                         continue;
                     }
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Commit => match flag {
                     'a' => "--amend",
@@ -211,10 +220,10 @@ impl Command {
                     's' => "--signoff",
                     't' => "--template=%",
                     'v' => "--verbose",
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Diff => match flag {
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Fetch => match flag {
                     '4' => "--ipv4",
@@ -231,7 +240,7 @@ impl Command {
                         continue;
                     }
                     'v' => "--verbose",
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Init => match flag {
                     'b' => "--bare",
@@ -245,7 +254,7 @@ impl Command {
                         end.push("--separate-git-dir=%");
                         continue;
                     }
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Log => match flag {
                     'o' => "--oneline",
@@ -262,10 +271,10 @@ impl Command {
                     'l' => "--no-abrev-commit",
                     'p' => "--parents",
                     'c' => "--children",
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Merge => match flag {
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Pull => match flag {
                     '4' => "--ipv4",
@@ -283,7 +292,7 @@ impl Command {
                         continue;
                     }
                     'v' => "--verbose",
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Push => match flag {
                     '4' => "--ipv4",
@@ -302,7 +311,7 @@ impl Command {
                         continue;
                     }
                     'v' => "--verbose",
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Rebase => match flag {
                     'a' => "--abort",
@@ -326,10 +335,10 @@ impl Command {
                         end.push("--exec='%'");
                         continue;
                     }
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Reflog => match flag {
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Reset => match flag {
                     'h' => "--hard",
@@ -338,46 +347,52 @@ impl Command {
                     'q' => "--quiet",
                     'r' => "--recurse-submodules",
                     's' => "--soft",
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Restore => match flag {
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Show => match flag {
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Stash => match flag {
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Status => match flag {
                     'l' => "--long",
                     's' => "--short",
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Switch => match flag {
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Tag => match flag {
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
                 Command::Worktree => match flag {
-                    _ => bail(),
+                    _ => bail!(flag_err),
                 },
             };
             body.push(expanded_flag);
         }
+
         let mut result = String::new();
+        if terminate && matches!(self, Command::Add) && target.is_none() {
+            if !body.contains(&"--all") {
+                body.push("--all");
+            }
+            target = Some(":/".to_string());
+        }
+        if let Some(target) = &target
+            && (matches!(self, Command::Reset) || matches!(self, Command::Add))
+        {
+            body.push(target);
+        }
         for flag in body.iter().chain(end.iter()) {
             result.push(' ');
             result.push_str(flag);
         }
-        if let Some(target) = target
-            && matches!(self, Command::Reset)
-        {
-            result.push(' ');
-            result.push_str(&target);
-        }
-        result
+        Ok(result)
     }
 }
 
@@ -412,19 +427,19 @@ impl Display for Command {
     }
 }
 
-fn split_flags_from_target(input: &str) -> Option<(&str, &str)> {
+fn split_flags_from_target(input: &str) -> (&str, &str) {
     let split_idx = input.find(['-', '/']);
     let (flags, target) = match split_idx {
         Some(i) => input.split_at(i),
         None => (input, ""),
     };
-    Some((flags, target))
+    (flags, target)
 }
 
-fn parse_target(target: &str) -> Option<Option<String>> {
+fn parse_target(target: &str) -> Result<Option<String>> {
     // Empty target is no target
     if target.is_empty() {
-        return Some(None);
+        return Ok(None);
     }
 
     // Parent of HEAD, multiple tildes
@@ -433,23 +448,26 @@ fn parse_target(target: &str) -> Option<Option<String>> {
         for _ in target.chars() {
             result.push('~');
         }
-        return Some(Some(result));
+        return Ok(Some(result));
     }
 
+    let first = target
+        .chars()
+        .next()
+        .expect("couldn't get first char despite target not empty");
+
     // Parent of HEAD, numbered
-    let first_is_minus = target.chars().next().unwrap() == '-';
     let rest_is_digits = target.chars().skip(1).all(|c| c.is_ascii_digit());
-    if first_is_minus && rest_is_digits {
-        let number: u32 = str::parse(&target[1..]).ok()?;
-        return Some(Some(format!("HEAD~{number}")));
+    if first == '-' && rest_is_digits {
+        let number: u32 = str::parse(&target[1..])?;
+        return Ok(Some(format!("HEAD~{number}")));
     }
 
     // Reflog entry, numbered
-    let first_is_slash = target.chars().next().unwrap() == '/';
-    if first_is_slash && rest_is_digits {
-        let number: u32 = str::parse(&target[1..]).ok()?;
-        return Some(Some(format!("HEAD@{{{number}}}")));
+    if first == '/' && rest_is_digits {
+        let number: u32 = str::parse(&target[1..])?;
+        return Ok(Some(format!("HEAD@{{{number}}}")));
     }
 
-    return None;
+    Err(anyhow!("target '{target}' is invalid"))
 }
