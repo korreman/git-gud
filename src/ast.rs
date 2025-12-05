@@ -21,7 +21,7 @@ pub fn ast() -> Node {
                 ]),
                 &opt(or(&[
                     &term(".", " ", ".", None),
-                    &term("-", " ", "--", None),
+                    &term("/", " ", ":/", None),
                 ])),
             ]),
         ),
@@ -50,15 +50,7 @@ pub fn ast() -> Node {
                 &flag("vv", "vv"),
                 &flag("v", "verbose"),
                 &flag("q", "quiet"),
-                &flag("nt", "no-track"),
-                &param(
-                    "t",
-                    "track",
-                    opt(or(&[
-                        &param_variant("d", "direct"),
-                        &param_variant("i", "indirect"),
-                    ])),
-                ),
+                &track(),
             ]),
         ),
         &subcmd(
@@ -77,7 +69,7 @@ pub fn ast() -> Node {
                     &flag("i", "include"),
                     &flag("o", "only"),
                     &flag("s", "status"),
-                    &param("m", "message", noneat("=", "%")),
+                    &message(),
                 ]),
                 &opt(term("-", " ", "--", None)),
             ]),
@@ -188,7 +180,7 @@ pub fn ast() -> Node {
             set(&[
                 &flag("1", "first-parent"),
                 &flag("o", "oneline"),
-                &flag("nd", "decorate"),
+                &flag("nd", "no-decorate"),
                 &flag("d", "decorate"),
                 &flag("f", "follow"),
                 &flag("m", "merges"),
@@ -201,22 +193,259 @@ pub fn ast() -> Node {
                 &param("d", "depth", number("=")),
             ]),
         ),
-        &subcmd("m", "merge", set(&[])),
-        &subcmd("p", "push", set(&[])),
-        &subcmd("q", "pull", set(&[])), // visually reversed 'p', on the opposite end of keyboard
-        &subcmd("rl", "reflog", set(&[])), // __r__ef__l__og
-        &subcmd("r", "reset", set(&[])),
-        &subcmd("s", "switch", set(&[])),
-        &subcmd("t", "tag", set(&[])),
-        &subcmd("u", "restore", set(&[])), // undo
-        &subcmd("v", "status", set(&[])),  // View the status
-        &subcmd("w", "worktree", set(&[])),
-        &subcmd("x", "clean", set(&[])),
-        //("y", _),
-        &subcmd("z", "stash", set(&[])), // ztash, similar to marks in modal editors
+        &subcmd(
+            "m",
+            "merge",
+            or(&[
+                &flag("c", "continue"),
+                &flag("a", "abort"),
+                &flag("q", "quit"),
+                &seq(&[&set(&[]), &opt(local_target())]),
+            ]),
+        ),
+        &subcmd(
+            "p",
+            "push",
+            set(&[
+                &flag("nt", "no-tags"),
+                &flag("t", "tags"),
+                &flag("nth", "no-thin"),
+                &flag("th", "thin"),
+                &flag("f", "force"),
+                &flag("d", "dry-run"),
+                &flag("q", "quiet"),
+                &flag("v", "verbose"),
+                &flag("V", "verify"),
+                &flag("nV", "no-verify"),
+                &flag("4", "ipv4"),
+                &flag("6", "ipv6"),
+            ]),
+        ),
+        &subcmd(
+            "q",
+            "pull",
+            set(&[
+                &flag("a", "all"),
+                &flag("p", "prune"),
+                &flag("nv", "no-verify"),
+                &flag("v", "verify"),
+                &flag("ffo", "ff-only"),
+                &flag("ff", "ff"),
+                &flag("nff", "no-ff"),
+                &flag("nr", "no-rebase"),
+                &flag("r", "rebase"),
+                &flag("d", "dry-run"),
+                &flag("nt", "no-tags"),
+                &flag("t", "tags"),
+                &flag("4", "ipv4"),
+                &flag("6", "ipv6"),
+            ]),
+        ),
+        &subcmd("rl", "reflog", set(&[])),
+        &subcmd(
+            "r",
+            "reset",
+            seq(&[
+                &opt(or(&[
+                    &flag("s", "soft"),
+                    &flag("h", "hard"),
+                    &flag("m", "merge"),
+                    &flag("k", "keep"),
+                    &flag("r", "recurse-submodules"),
+                ])),
+                &set(&[
+                    &flag("q", "quiet"),
+                    &flag("nr", "no-refresh"),
+                    &flag("nr", "no-refresh"),
+                ]),
+                &opt(local_target()),
+            ]),
+        ),
+        &subcmd(
+            "s",
+            "switch",
+            set(&[
+                &flag("fc", "force-create"),
+                &flag("f", "force"),
+                &flag("C", "force-create"),
+                &flag("c", "create"),
+                &flag("d", "detach"),
+                &flag("ng", "no-guess"),
+                &flag("iow", "ignore-other-worktrees"),
+                &track(),
+            ]),
+        ),
+        &subcmd(
+            "t",
+            "tag",
+            set(&[
+                &flag("a", "annotate"),
+                &flag("s", "sign"),
+                &flag("ns", "no-sign"),
+                &flag("f", "force"),
+                &flag("d", "delete"),
+                &flag("v", "verify"),
+                &flag("l", "list"),
+                &flag("ic", "ignore-case"),
+                &flag("oe", "omit-empty"),
+                &flag("oe", "omit-empty"),
+                &flag("e", "edit"),
+                &message(),
+            ]),
+        ),
+        &subcmd(
+            "u",
+            "restore",
+            set(&[
+                &flag("p", "patch"),
+                &flag("w", "worktree"),
+                &flag("i", "staged"), // i for index
+                &flag("o", "ours"),
+                &flag("t", "theirs"),
+                &flag("m", "merge"),
+                &param("s", "source", term("", "=", "%", None)),
+                &recurse_submodules(),
+            ]),
+        ),
+        &subcmd(
+            "v",
+            "status",
+            set(&[
+                &flag("s", "short"),
+                &flag("l", "long"),
+                &flag("z", "show-stash"),
+                &flag("v", "verbose"),
+                &flag("a", "ahead-behind"),
+                &flag("na", "no-ahead-behind"),
+                &flag("r", "renames"),
+                &flag("nr", "no-renames"),
+                &param("fr", "find-renames", number("=")),
+                &param(
+                    "u",
+                    "untracked-files",
+                    opt(or(&[
+                        &param_variant("no", "no"),
+                        &param_variant("n", "normal"),
+                        &param_variant("a", "all"),
+                    ])),
+                ),
+                &param(
+                    "i",
+                    "ignored",
+                    opt(or(&[
+                        &param_variant("no", "no"),
+                        &param_variant("t", "traditional"),
+                        &param_variant("m", "matching"),
+                    ])),
+                ),
+            ]),
+        ),
+        &subcmd(
+            "w",
+            "worktree",
+            or(&[
+                &subcmd(
+                    "a",
+                    "add",
+                    set(&[
+                        &flag("f", "force"),
+                        &flag("d", "detach"),
+                        &flag("nc", "no-checkout"),
+                        &flag("ng", "no-guess-remote"),
+                        &flag("nrp", "no-relative-paths"),
+                        &flag("nt", "no-track"),
+                        &flag("l", "lock"),
+                        &flag("o", "orphan"),
+                        &flag("q", "quiet"),
+                    ]),
+                ),
+                &subcmd("v", "list", set(&[&flag("v", "verbose")])),
+                &subcmd("m", "move", set(&[&flag("f", "force")])),
+                &subcmd(
+                    "p",
+                    "prune",
+                    set(&[&flag("d", "dry-run"), &flag("v", "verbose")]),
+                ),
+                &subcmd("r", "remove", set(&[&flag("f", "force")])),
+                &subcmd("R", "repair", set(&[])),
+                &subcmd("l", "lock", set(&[])),
+                &subcmd("u", "unlock", set(&[])),
+            ]),
+        ),
+        &subcmd(
+            "x",
+            "clean",
+            set(&[
+                &shortflag("d", "d"),
+                &shortflag("xx", "xX"),
+                &shortflag("x", "x"),
+                &shortflag("X", "X"),
+                &flag("f", "force"),
+                &flag("i", "interactive"),
+                &flag("d", "dry-run"),
+                &flag("q", "quiet"),
+            ]),
+        ),
+        &subcmd(
+            "z",
+            "stash",
+            opt(or(&[
+                &subcmd(
+                    "p",
+                    "push",
+                    set(&[
+                        &flag("a", "all"),
+                        &flag("p", "patch"),
+                        &flag("s", "staged"),
+                        &message(),
+                    ]),
+                ),
+                &subcmd("o", "pop", set(&[])),
+                &subcmd(
+                    "s",
+                    "save",
+                    set(&[
+                        &flag("a", "all"),
+                        &flag("p", "patch"),
+                        &flag("s", "staged"),
+                        &flag("q", "quiet"),
+                    ]),
+                ),
+                &subcmd("l", "list", set(&[])),
+                &subcmd("h", "show", set(&[])),
+                &subcmd("d", "drop", set(&[])),
+                &subcmd("a", "apply", set(&[])),
+                &subcmd("b", "branch", set(&[])),
+                &subcmd("c", "clear", set(&[])),
+                &subcmd("m", "create", set(&[])),
+                &subcmd("t", "store", set(&[])),
+            ])),
+        ),
     ])
+}
+
+pub fn recurse_submodules() -> Node {
+    flag("rs", "recurse-submodules")
 }
 
 pub fn local_target() -> Node {
     or(&[&term("-", " ", "HEAD~", Some(opt(number(""))))])
+}
+
+pub fn message() -> Node {
+    param("m", "message", noneat("=", "%"))
+}
+
+pub fn track() -> Node {
+    or(&[
+        &flag("nt", "no-track"),
+        &param(
+            "t",
+            "track",
+            opt(or(&[
+                &param_variant("d", "direct"),
+                &param_variant("i", "indirect"),
+            ])),
+        ),
+    ])
 }
