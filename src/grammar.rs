@@ -3,43 +3,54 @@ use crate::tree::*;
 
 // Helper ASTs
 
-pub fn target_branch() -> Node {
+const POSITION_STR: &'static str = "%";
+
+fn target_branch(prefix: Str) -> Node {
     or(&[
-        custom("h", " ", current_branch),
-        custom("u", " ", current_upstream),
-        custom("m", " ", main_branch),
-        custom("o", " ", main_remote_head),
+        custom("h", prefix, current_branch),
+        custom("u", prefix, current_upstream),
+        custom("m", prefix, main_branch),
+        custom("o", prefix, main_remote_head),
     ])
 }
 
-pub fn target_remote() -> Node {
+fn remote() -> Node {
     or(&[
         custom("h", " ", current_remote),
         custom("o", " ", main_remote),
     ])
 }
 
-pub fn recurse_submodules() -> Node {
+fn recurse_submodules() -> Node {
     flag("rs", "recurse-submodules")
 }
 
-pub fn target_commit() -> Node {
+fn commit_or_user_input(prefix: Str) -> Node {
     or(&[
-        term("-", " ", "HEAD~", Some(opt(number("")))),
+        commit(prefix),
+        term("=", prefix, POSITION_STR, None),
+        noneat(prefix, POSITION_STR),
+    ])
+}
+
+fn commit(prefix: Str) -> Node {
+    or(&[
+        target_branch(prefix),
+        term("-", prefix, "HEAD~", Some(opt(number("")))),
         term(
             "@",
-            " ",
+            prefix,
             "HEAD@{",
             Some(seq(&[number(""), noneat("", "}")])),
         ),
     ])
 }
 
-pub fn message() -> Node {
-    param("m", "message", noneat("=", "%"))
+fn message() -> Node {
+    param("m", "message", noneat("=", POSITION_STR))
 }
 
-pub fn track() -> Node {
+fn track() -> Node {
     or(&[
         flag("nt", "no-track"),
         param(
@@ -50,6 +61,34 @@ pub fn track() -> Node {
                 param_variant("i", "indirect"),
             ])),
         ),
+    ])
+}
+
+fn pretty() -> Node {
+    param(
+        "f",
+        "pretty",
+        opt(or(&[
+            param_variant("o", "oneline"),
+            param_variant("s", "short"),
+            param_variant("m", "medium"),
+            param_variant("ff", "fuller"),
+            param_variant("f", "full"),
+            param_variant("rf", "reference"),
+            param_variant("r", "raw"),
+            param_variant("e", "email"),
+            param_variant("=", "format:%"),
+            param_variant("=t", "tformat:%"),
+        ])),
+    )
+}
+
+fn reflog_expire_param() -> Node {
+    or(&[
+        term("a", "=", "all", None),
+        term("n", "=", "never", None),
+        term("=", "=", POSITION_STR, None),
+        noneat("=", POSITION_STR),
     ])
 }
 
@@ -84,7 +123,7 @@ pub fn ast() -> Node {
                 shortflag("w", "w"),
                 shortflag("s", "s"),
                 flag("1", "first-parent"),
-                term("l", " -", "L", Some(noneat(" ", "%"))),
+                term("l", " -", "L", Some(noneat(" ", POSITION_STR))),
                 flag("n", "show-number"),
             ]),
         ),
@@ -94,35 +133,50 @@ pub fn ast() -> Node {
             set(&[
                 flag("f", "force"),
                 flag("d", "delete"),
+                param("me", "merged", commit_or_user_input("=")),
+                param("nme", "no-merged", commit_or_user_input("=")),
                 flag("m", "move"),
                 flag("c", "copy"),
                 flag("r", "remotes"),
                 flag("a", "all"),
-                flag("vv", "vv"),
+                shortflag("vv", "vv"),
                 flag("v", "verbose"),
                 flag("q", "quiet"),
+                param("u", "set-upstream-to", commit_or_user_input("=")),
                 track(),
             ]),
         ),
         subcmd(
             "c",
             "commit",
-            seq(&[
-                set(&[
-                    flag("a", "amend"),
-                    flag("A", "all"),
-                    flag("p", "patch"),
-                    flag("d", "dry-run"),
-                    flag("ne", "no-edit"),
-                    flag("e", "edit"),
-                    flag("nv", "no-verify"),
-                    flag("V", "verify"),
-                    flag("i", "include"),
-                    flag("o", "only"),
-                    flag("s", "status"),
-                    message(),
-                ]),
-                opt(term("-", " ", "--", None)),
+            set(&[
+                flag("a", "amend"),
+                flag("d", "dry-run"),
+                flag("ne", "no-edit"),
+                flag("e", "edit"),
+                flag("nv", "no-verify"),
+                flag("v", "verify"),
+                flag("i", "include"),
+                flag("o", "only"),
+                flag("st", "status"),
+                flag("s", "signoff"),
+                flag("ng", "no-gpg-sign"),
+                param("g", "gpg-sign", opt(term("=", "=", POSITION_STR, None))),
+                param(
+                    "f",
+                    "fixup=",
+                    seq(&[
+                        opt(set(&[
+                            term("a", "", "amend:", None),
+                            term("r", "", "reword:", None),
+                        ])),
+                        commit_or_user_input(""),
+                    ]),
+                ),
+                param("q", "squash", commit_or_user_input("=")),
+                param("c", "reedit-message", commit_or_user_input("=")),
+                param("C", "reuse-message", commit_or_user_input("=")),
+                message(),
             ]),
         ),
         subcmd(
@@ -142,7 +196,7 @@ pub fn ast() -> Node {
                     flag("w", "ignore-all-space"),
                     param("u", "unified", number("=")),
                 ]),
-                opt(target_commit()),
+                opt(commit(" ")),
             ]),
         ),
         subcmd(
@@ -169,7 +223,7 @@ pub fn ast() -> Node {
                         flag("V", "verify"),
                         flag("v", "verbose"),
                     ]),
-                    opt(target_commit()),
+                    opt(commit(" ")),
                 ]),
             ]),
         ),
@@ -194,54 +248,93 @@ pub fn ast() -> Node {
         subcmd(
             "g",
             "checkout",
-            set(&[
-                flag("q", "quiet"),
-                flag("f", "force"),
-                flag("g", "guess"),
-                flag("d", "detach"),
-                flag("m", "merge"),
-                flag("p", "patch"),
-                flag("no", "no-overlay"),
-                flag("o", "overlay"),
+            seq(&[
+                set(&[
+                    shortflag("b", "b"),
+                    shortflag("bb", "B"),
+                    shortflag("B", "B"),
+                    shortflag("l", "l"),
+                    flag("f", "force"),
+                    flag("ng", "no-guess"),
+                    flag("g", "guess"),
+                    flag("d", "detach"),
+                    flag("m", "merge"),
+                    flag("p", "patch"),
+                    flag("no", "no-overlay"),
+                    flag("os", "ours"),
+                    flag("ts", "theirs"),
+                    track(),
+                ]),
+                opt(commit(" %")),
             ]),
         ),
         subcmd(
             "h",
             "show",
-            set(&[flag("o", "oneline"), flag("nn", "no-notes")]),
+            set(&[
+                flag("o", "oneline"),
+                flag("nn", "no-notes"),
+                flag("a", "abbrev-commit"),
+                flag("s", "no-patch"),
+                shortflag("m", "m"),
+                pretty(),
+            ]),
         ),
         subcmd("i", "init", set(&[flag("b", "bare")])),
         subcmd(
             "k",
             "clone",
             set(&[
-                flag("l", "local"),
+                flag("1", "single-branch"),
+                flag("0", "bare"),
                 flag("h", "shared"),
-                flag("b", "bare"),
+                flag("l", "local"),
+                flag("m", "mirror"),
+                flag("ng", "no-checkout"),
                 flag("s", "sparse"),
                 flag("nt", "no-tags"),
+                flag("nhl", "no-hardlinks"),
                 flag("t", "tags"),
+                param("b", "branch", noneat(" ", POSITION_STR)),
                 param("d", "depth", number("=")),
+                param("d", "dissociate", noneat(" ", POSITION_STR)),
                 param("j", "jobs", number("=")),
+                param("o", "origin", noneat(" ", POSITION_STR)),
+                param("rf", "reference", noneat(" ", POSITION_STR)),
+                param("rv", "revision", noneat(" ", POSITION_STR)),
             ]),
         ),
         subcmd(
             "l",
             "log",
-            set(&[
-                flag("1", "first-parent"),
-                flag("o", "oneline"),
-                flag("nd", "no-decorate"),
-                flag("d", "decorate"),
-                flag("f", "follow"),
-                flag("m", "merges"),
-                flag("a", "all"),
-                flag("g", "graph"),
-                flag("n", "no-patch"),
-                flag("p", "patch"),
-                flag("b", "ignore-space-change"),
-                flag("w", "ignore-all-space"),
-                param("d", "depth", number("=")),
+            seq(&[
+                set(&[
+                    flag("ac", "abbrev-commit"),
+                    flag("nac", "no-abbrev-commit"),
+                    flag("1", "first-parent"),
+                    flag("o", "oneline"),
+                    param(
+                        "d",
+                        "decorate",
+                        opt(or(&[
+                            param_variant("s", "short"),
+                            param_variant("f", "full"),
+                            param_variant("a", "auto"),
+                            param_variant("n", "no"),
+                        ])),
+                    ),
+                    flag("nd", "no-decorate"),
+                    flag("F", "follow"),
+                    flag("me", "merges"),
+                    flag("a", "all"),
+                    flag("g", "graph"),
+                    flag("p", "patch"),
+                    flag("b", "ignore-space-change"),
+                    flag("w", "ignore-all-space"),
+                    param("m", "max-count", number("=")),
+                    pretty(),
+                ]),
+                opt(commit(" ")),
             ]),
         ),
         subcmd(
@@ -251,25 +344,29 @@ pub fn ast() -> Node {
                 flag("c", "continue"),
                 flag("a", "abort"),
                 flag("q", "quit"),
-                seq(&[set(&[]), opt(target_commit())]),
+                seq(&[set(&[]), opt(commit(" "))]),
             ]),
         ),
         subcmd(
             "p",
             "push",
-            set(&[
-                flag("nt", "no-tags"),
-                flag("t", "tags"),
-                flag("nth", "no-thin"),
-                flag("th", "thin"),
-                flag("f", "force"),
-                flag("d", "dry-run"),
-                flag("q", "quiet"),
-                flag("v", "verbose"),
-                flag("V", "verify"),
-                flag("nV", "no-verify"),
-                flag("4", "ipv4"),
-                flag("6", "ipv6"),
+            seq(&[
+                set(&[
+                    flag("nt", "no-tags"),
+                    flag("t", "tags"),
+                    flag("nth", "no-thin"),
+                    flag("th", "thin"),
+                    flag("f", "force"),
+                    flag("d", "dry-run"),
+                    flag("q", "quiet"),
+                    flag("v", "verbose"),
+                    flag("V", "verify"),
+                    flag("nV", "no-verify"),
+                    flag("4", "ipv4"),
+                    flag("6", "ipv6"),
+                    flag("u", "set-upstream"),
+                ]),
+                opt(seq(&[remote(), opt(target_branch(" "))])),
             ]),
         ),
         subcmd(
@@ -293,7 +390,48 @@ pub fn ast() -> Node {
                 flag("6", "ipv6"),
             ]),
         ),
-        subcmd("rl", "reflog", set(&[])),
+        subcmd(
+            "rl",
+            "reflog",
+            opt(or(&[
+                subcmd("s", "show", seq(&[])), // TODO: All of the log expansions
+                subcmd("l", "list", seq(&[])),
+                subcmd(
+                    "e",
+                    "list",
+                    set(&[
+                        flag("a", "all"),
+                        flag("d", "dry-run"),
+                        flag("r", "rewrite"),
+                        flag("sf", "stale-fix"),
+                        flag("sw", "single-worktree"),
+                        flag("u", "updateref"),
+                        param("e", "expire", reflog_expire_param()),
+                        param("eu", "expire-unreachable", reflog_expire_param()),
+                    ]),
+                ),
+                subcmd(
+                    "d",
+                    "delete",
+                    set(&[
+                        flag("d", "dry-run"),
+                        flag("r", "rewrite"),
+                        flag("u", "updateref"),
+                    ]),
+                ),
+                subcmd(
+                    "D",
+                    "drop",
+                    opt(term(
+                        "a",
+                        " ",
+                        "all",
+                        Some(opt(flag("sw", "single-worktree"))),
+                    )),
+                ),
+                subcmd("x", "exists", set(&[])),
+            ])),
+        ),
         subcmd(
             "r",
             "reset",
@@ -310,7 +448,7 @@ pub fn ast() -> Node {
                     flag("nr", "no-refresh"),
                     flag("nr", "no-refresh"),
                 ]),
-                opt(target_commit()),
+                opt(commit(" ")),
             ]),
         ),
         subcmd(
@@ -327,7 +465,7 @@ pub fn ast() -> Node {
                     flag("iow", "ignore-other-worktrees"),
                     track(),
                 ]),
-                opt(target_branch()),
+                opt(target_branch(" ")),
             ]),
         ),
         subcmd(
@@ -358,7 +496,7 @@ pub fn ast() -> Node {
                 flag("o", "ours"),
                 flag("t", "theirs"),
                 flag("m", "merge"),
-                param("s", "source", term("", "=", "%", None)),
+                param("s", "source", term("", "=", POSITION_STR, None)),
                 recurse_submodules(),
             ]),
         ),
