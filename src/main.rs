@@ -1,8 +1,10 @@
 use anyhow::{Context, Result, bail};
+use clap::Parser;
 use log::debug;
 
 const INSTALLER_SCRIPT: &str = include_str!("git_expand.fish.template");
 
+mod cli;
 mod grammar;
 mod helpers;
 mod tree;
@@ -17,30 +19,33 @@ fn main() {
 }
 
 fn run() -> Result<()> {
-    let mut args = std::env::args();
-    args.next(); // skip binary name
-    let arg = args.next().context("missing first argument")?;
-    if is_real_command(&arg)? {
-        bail!("'{arg}' is a real git command");
-    } else if arg == "--generate-installer" {
-        let executable = std::env::current_exe().context("couldn't get own executable path")?;
-        let replaced = INSTALLER_SCRIPT.replace(
-            "${GIT_SHORTHAND}",
-            executable.to_str().context("executable path isn't UTF-8")?,
-        );
-        print!("{replaced}");
-    } else if arg == "--generic-installer" {
-        print!("{INSTALLER_SCRIPT}");
-    } else {
-        let ast = grammar::ast();
-        debug!("{ast:#?}");
-        let mut result = String::new();
-        if let Some(tail) = ast.expand(&arg, &mut result)
-            && tail.is_empty()
-        {
-            println!("{}", result.trim());
-        } else {
-            std::process::exit(1);
+    let cli = cli::Cli::parse();
+    match cli.subcommand {
+        cli::Sub::Installer => {
+            let executable = std::env::current_exe().context("couldn't get own executable path")?;
+            let replaced = INSTALLER_SCRIPT.replace(
+                "${GIT_SHORTHAND}",
+                executable.to_str().context("executable path isn't UTF-8")?,
+            );
+            print!("{replaced}");
+        }
+        cli::Sub::Expand { expr, force, .. } => {
+            if !force && is_real_command(&expr)? {
+                bail!("'{expr}' is a real git command, use --force to expand anyway");
+            }
+            let ast = grammar::ast();
+            debug!("{ast:#?}");
+            let mut result = String::new();
+            if let Some(tail) = ast.expand(&expr, &mut result)
+                && tail.is_empty()
+            {
+                println!("{}", result.trim());
+            } else {
+                std::process::exit(1);
+            }
+        }
+        cli::Sub::Grammar => {
+            todo!("showing the grammar is not supported yet");
         }
     }
     Ok(())
