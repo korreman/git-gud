@@ -66,5 +66,5 @@ Examples:
 ... is left as an exercise for the user.
 
 Figure out how to get `git-gud` installed on the system,
-then run `git-gud --generate-installer | source` somewhere during Fish shell initialization,
+then run `git-gud installer | source` somewhere during Fish shell initialization,
 in order to register abbrevations.
