@@ -9,11 +9,24 @@ function _git_expand_base_command
     end
 end
 
-abbr --add _git_expansion --command git --regex '\S+' --function _git_expansion --set-cursor
-function _git_expansion
+if ${NO_SPACE}
+    abbr --add _git_gud --regex 'g\S+' --function _git_gud_expand_no_space --set-cursor
+else
+    abbr --add git_gud --command git --regex '\S+' _git_gud_expand --function --set-cursor
+end
+
+function _git_gud_expand_no_space
+    if type -q $argv[1]
+        return 1
+    end
+    echo -n 'git '
+    ${GIT_GUD} expand $shortcmd (string sub --start 2 $argv[1])
+end
+
+function _git_gud_expand
     set -f shortcmd (string match --regex --groups-only '^git\s+(\S+?)(\s|;)?$' (commandline))
     if test $status -eq 0
-        ${GIT_SHORTHAND} expand $shortcmd[1]
+        ${GIT_GUD} expand $shortcmd[1]
     else
         return 1
     end

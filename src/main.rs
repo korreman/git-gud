@@ -21,13 +21,15 @@ fn main() {
 fn run() -> Result<()> {
     let cli = cli::Cli::parse();
     match cli.subcommand {
-        cli::Sub::Installer => {
+        cli::Sub::Installer { no_space } => {
             let executable = std::env::current_exe().context("couldn't get own executable path")?;
-            let replaced = INSTALLER_SCRIPT.replace(
-                "${GIT_SHORTHAND}",
+            let with_executable = INSTALLER_SCRIPT.replace(
+                "${GIT_GUD}",
                 executable.to_str().context("executable path isn't UTF-8")?,
             );
-            print!("{replaced}");
+            let with_no_space_decided =
+                with_executable.replace("${NO_SPACE}", if no_space { "true" } else { "false" });
+            print!("{with_no_space_decided}");
         }
         cli::Sub::Expand { expr, force } => {
             if !force && is_real_command(&expr)? {

@@ -10,7 +10,10 @@ pub struct Cli {
 #[derive(Debug, Clone, Subcommand)]
 pub enum Sub {
     /// Generate an installer script that can be sourced during shell init.
-    Installer,
+    Installer {
+        #[arg(long)]
+        no_space: bool,
+    },
     /// Expand a shorthand expression to a subcommand.
     Expand {
         /// Do not refuse to expand expressions that are unsupposrted valid git commands.
