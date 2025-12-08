@@ -11,9 +11,9 @@ end
 
 abbr --add _git_expansion --command git --regex '\S+' --function _git_expansion --set-cursor
 function _git_expansion
-    set -f shortcmd (string match --regex --groups-only '^git\s+(\S+?)(\s|;)$' (commandline))
+    set -f shortcmd (string match --regex --groups-only '^git\s+(\S+?)(\s|;)?$' (commandline))
     if test $status -eq 0
-        ${GIT_SHORTHAND} expand $shortcmd[1] "$shortcmd[2]"
+        ${GIT_SHORTHAND} expand $shortcmd[1]
     else
         return 1
     end

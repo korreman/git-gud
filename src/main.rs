@@ -29,7 +29,7 @@ fn run() -> Result<()> {
             );
             print!("{replaced}");
         }
-        cli::Sub::Expand { expr, force, .. } => {
+        cli::Sub::Expand { expr, force } => {
             if !force && is_real_command(&expr)? {
                 bail!("'{expr}' is a real git command, use --force to expand anyway");
             }

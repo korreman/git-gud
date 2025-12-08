@@ -17,7 +17,6 @@ pub enum Sub {
         #[arg(short, long)]
         force: bool,
         expr: String,
-        ending: String,
     },
     /// Show the shorthand grammar.
     Grammar,
