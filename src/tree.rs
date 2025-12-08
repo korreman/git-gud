@@ -122,6 +122,10 @@ pub fn prefix(p: Str, node: Node) -> Node {
     Seq(vec![Emit(p), node])
 }
 
+pub fn arg(node: Node) -> Node {
+    prefix(" ", node)
+}
+
 pub fn flag(i: Str, o: Str) -> Node {
     prefix("--", word(i, o))
 }
@@ -146,19 +150,13 @@ pub fn set<const N: usize>(nodes: [Node; N]) -> Node {
     Set(nodes.to_vec())
 }
 
-pub fn prefix_or<const N: usize>(p: Str, nodes: [Node; N]) -> Node {
-    let nodes = nodes.into_iter().map(|node| prefix(p, node)).collect();
-    Or(nodes)
-}
-
-pub fn _prefix_seq<const N: usize>(p: Str, nodes: [Node; N]) -> Node {
-    let nodes = nodes.into_iter().flat_map(|node| [Emit(p), node]).collect();
-    Seq(nodes)
-}
-
 pub fn prefix_set<const N: usize>(p: Str, nodes: [Node; N]) -> Node {
     let nodes = nodes.into_iter().map(|node| prefix(p, node)).collect();
     Set(nodes)
+}
+
+pub fn argset<const N: usize>(nodes: [Node; N]) -> Node {
+    prefix_set(" ", nodes)
 }
 
 pub fn number_or_zero() -> Node {
