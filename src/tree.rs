@@ -118,6 +118,10 @@ pub fn word(i: Str, o: Str) -> Node {
     Seq(vec![Eat(i), Emit(o)])
 }
 
+pub fn map(i: Str, o: Node) -> Node {
+    Seq(vec![Eat(i), o])
+}
+
 pub fn prefix(p: Str, node: Node) -> Node {
     Seq(vec![Emit(p), node])
 }
