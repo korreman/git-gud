@@ -612,7 +612,7 @@ fn commit_or_cursor() -> Node {
 }
 
 fn message() -> Node {
-    param("m", "message", Emit(CURSOR))
+    param("m", "message", seq([Emit("\""), Emit(CURSOR), Emit("\"")]))
 }
 
 fn track() -> Node {
