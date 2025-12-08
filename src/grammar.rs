@@ -128,12 +128,14 @@ fn diff() -> Node {
             flag("p", "patience"),
             flag("ss", "shortstat"),
             flag("s", "stat"),
-            flag("ni", "no-indent-heuristic"),
-            flag("i", "indent-heuristic"),
+            flag("nih", "no-indent-heuristic"),
+            flag("ih", "indent-heuristic"),
+            flag("ni", "no-index"),
             flag("b", "ignore-space-change"),
             flag("w", "ignore-all-space"),
             param("u", "unified", number_or_zero()),
         ]),
+        opt(arg(target_commit())),
     ])
 }
 
@@ -144,7 +146,7 @@ fn rebase() -> Node {
             arg(flag("a", "abort")),
             arg(flag("c", "continue")),
             arg(flag("e", "edit-todo")),
-            arg(flag("h", "show")),
+            arg(flag("h", "show-current-patch")),
             arg(flag("q", "quit")),
             arg(flag("s", "skip")),
             seq([
@@ -210,6 +212,7 @@ fn checkout() -> Node {
     ])
 }
 
+// TODO: Show have most of the same options as diff command
 fn show() -> Node {
     seq([
         Emit("show"),
@@ -217,7 +220,9 @@ fn show() -> Node {
             flag("o", "oneline"),
             flag("nn", "no-notes"),
             flag("a", "abbrev-commit"),
-            flag("s", "no-patch"),
+            flag("np", "no-patch"),
+            flag("b", "ignore-space-change"),
+            flag("s", "stat"),
             f("m", "m"),
             pretty(),
         ]),
@@ -264,6 +269,7 @@ fn log() -> Node {
         Emit("log"),
         argset([
             flag("ac", "abbrev-commit"),
+            flag("s", "stat"),
             flag("nac", "no-abbrev-commit"),
             flag("1", "first-parent"),
             flag("o", "oneline"),
@@ -313,7 +319,8 @@ fn push() -> Node {
             flag("t", "tags"),
             flag("nth", "no-thin"),
             flag("th", "thin"),
-            flag("f", "force"),
+            flag("ff", "force"),
+            flag("f", "force-with-lease"),
             flag("d", "dry-run"),
             flag("q", "quiet"),
             flag("v", "verbose"),
@@ -435,6 +442,8 @@ fn tag() -> Node {
             flag("ic", "ignore-case"),
             flag("oe", "omit-empty"),
             flag("oe", "omit-empty"),
+            param_opt("mr", "merged", target_commit()),
+            param_opt("nmr", "no-merged", target_commit()),
             flag("e", "edit"),
             message(),
         ]),
@@ -577,11 +586,10 @@ fn stash() -> Node {
 
 // Helpers
 
-const CURSOR: &'static str = "%";
-
 fn target_branch() -> Node {
     or([
-        map_custom("h", current_branch),
+        word("h", "HEAD"),
+        map_custom("c", current_branch),
         map_custom("u", current_upstream),
         map_custom("m", main_branch),
         map_custom("o", main_remote_head),
@@ -590,7 +598,7 @@ fn target_branch() -> Node {
 
 fn remote() -> Node {
     or([
-        map_custom("h", current_remote),
+        map_custom("c", current_remote),
         map_custom("o", main_remote),
     ])
 }

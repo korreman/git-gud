@@ -172,12 +172,18 @@ pub fn map_custom(i: Str, func: fn() -> Option<String>) -> Node {
 }
 
 pub fn param(i: Str, o: Str, arg: Node) -> Node {
-    seq([Emit("--"), word(i, o), prefix("=", arg)])
+    seq([Emit("--"), word(i, o), prefix("=", or([arg, Emit(CURSOR)]))])
 }
 
 pub fn param_opt(i: Str, o: Str, arg: Node) -> Node {
-    seq([Emit("--"), word(i, o), opt(prefix("=", arg))])
+    seq([
+        Emit("--"),
+        word(i, o),
+        opt(prefix("=", or([arg, map("=", Emit(CURSOR))]))),
+    ])
 }
+
+pub const CURSOR: &'static str = "%";
 
 /*
 // Convenience builders
