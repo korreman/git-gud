@@ -140,13 +140,13 @@ fn diff() -> Node {
 fn rebase() -> Node {
     seq([
         Emit("rebase"),
-        arg(or([
-            flag("a", "abort"),
-            flag("c", "continue"),
-            flag("e", "edit-todo"),
-            flag("h", "show"),
-            flag("q", "quit"),
-            flag("s", "skip"),
+        or([
+            arg(flag("a", "abort")),
+            arg(flag("c", "continue")),
+            arg(flag("e", "edit-todo")),
+            arg(flag("h", "show")),
+            arg(flag("q", "quit")),
+            arg(flag("s", "skip")),
             seq([
                 argset([
                     flag("i", "interactive"),
@@ -163,7 +163,7 @@ fn rebase() -> Node {
                 ]),
                 opt(arg(target_commit())),
             ]),
-        ])),
+        ]),
     ])
 }
 
