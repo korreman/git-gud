@@ -9,10 +9,10 @@ function _git_expand_base_command
     end
 end
 
+abbr --add _git_gud --command git --regex '\S+' --function _git_gud_expand --set-cursor
+
 if ${NO_SPACE}
-    abbr --add _git_gud --regex 'g\S+' --function _git_gud_expand_no_space --set-cursor
-else
-    abbr --add _git_gud --command git --regex '\S+' --function _git_gud_expand --set-cursor
+    abbr --add _git_gud_no_space --regex 'g\S+' --function _git_gud_expand_no_space --set-cursor
 end
 
 function _git_gud_expand_no_space

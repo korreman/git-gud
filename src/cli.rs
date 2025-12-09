@@ -11,7 +11,9 @@ pub struct Cli {
 pub enum Sub {
     /// Generate an installer script that can be sourced during shell init.
     Installer {
-        #[arg(long)]
+        /// Also expand the command field, like `gca` to `git commit --amend`,
+        /// when it doesn't conflict with existing commands.
+        #[arg(long, conflicts_with = "both")]
         no_space: bool,
     },
     /// Expand a shorthand expression to a subcommand.
