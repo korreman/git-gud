@@ -114,6 +114,12 @@ impl Node {
 }
 
 // Useful combinators
+pub const CURSOR: &'static str = "%";
+
+pub fn fail() -> Node {
+    or([])
+}
+
 pub fn word(i: Str, o: Str) -> Node {
     Seq(vec![Eat(i), Emit(o)])
 }
@@ -179,29 +185,6 @@ pub fn param_opt(i: Str, o: Str, arg: Node) -> Node {
     seq([
         Emit("--"),
         word(i, o),
-        opt(prefix("=", or([arg, map("=", Emit(CURSOR))]))),
+        opt(prefix("=", or([arg, map("_", Emit(CURSOR))]))),
     ])
 }
-
-pub const CURSOR: &'static str = "%";
-
-/*
-// Convenience builders
-
-pub fn term(shorthand: Str, prefix: Str, expansion: Str, child: Option<Node>) -> Node {
-    let child = child.map(Box::new);
-    Node::Eat {
-        shorthand,
-        prefix,
-        expansion,
-        child,
-    }
-}
-
-// Specific builders
-
-pub fn subcmd(shorthand: Str, expansion: Str, child: Node) -> Node {
-    term(shorthand, " ", expansion, Some(child))
-}
-
-*/

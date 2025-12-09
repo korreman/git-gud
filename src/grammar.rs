@@ -3,6 +3,9 @@ use crate::tree::*;
 
 /// Generate the grammar for all commands.
 pub fn ast() -> Node {
+    // two-letter shortcuts we cannot use:
+    // gh: github cli
+    // go: golang compiler
     or([
         map("a", add()),
         map("bl", blame()),
@@ -12,22 +15,24 @@ pub fn ast() -> Node {
         map("e", rebase()),
         map("f", fetch()),
         map("g", checkout()),
-        map("h", show()),
         map("i", init()),
+        // j
         map("k", clone()),
         map("l", log()),
         map("m", merge()),
+        // n
         map("p", push()),
-        map("q", pull()),
         map("rl", reflog()),
         map("r", reset()),
+        map("st", status()),
         map("s", switch()),
         map("t", tag()),
-        map("u", restore()),
-        map("v", status()),
+        map("u", restore()), // undo
+        map("v", show()),
         map("w", worktree()),
         map("x", clean()),
-        map("z", stash()),
+        map("y", pull()),  // yank
+        map("z", stash()), // marks
     ])
 }
 
@@ -37,7 +42,6 @@ fn add() -> Node {
         argset([
             flag("na", "no-all"),
             flag("a", "all"),
-            flag("v", "verbose"),
             flag("d", "dry-run"),
             flag("f", "force"),
             flag("s", "sparse"),
@@ -71,16 +75,14 @@ fn branch() -> Node {
         argset([
             flag("f", "force"),
             flag("d", "delete"),
-            param("me", "merged", commit_or_cursor()),
-            param("nme", "no-merged", commit_or_cursor()),
+            param_opt("mr", "merged", target_commit()),
+            param_opt("nm", "no-merged", target_commit()),
             flag("m", "move"),
             flag("c", "copy"),
             flag("r", "remotes"),
             flag("a", "all"),
             f("vv", "vv"),
-            flag("v", "verbose"),
-            flag("q", "quiet"),
-            param("u", "set-upstream-to", commit_or_cursor()),
+            param("u", "set-upstream-to", target_commit()),
             track(),
         ]),
     ])
@@ -101,18 +103,18 @@ fn commit() -> Node {
             flag("st", "status"),
             flag("s", "signoff"),
             flag("ng", "no-gpg-sign"),
-            param_opt("g", "gpg-sign", word("=", CURSOR)),
+            param_opt("g", "gpg-sign", fail()),
             param(
                 "f",
                 "fixup",
                 seq([
                     opt(set([word("a", "amend:"), word("r", "reword:")])),
-                    commit_or_cursor(),
+                    or([target_commit(), Emit(CURSOR)]),
                 ]),
             ),
-            param("q", "squash", commit_or_cursor()),
-            param("c", "reedit-message", commit_or_cursor()),
-            param("C", "reuse-message", commit_or_cursor()),
+            param("q", "squash", target_commit()),
+            param("c", "reedit-message", target_commit()),
+            param("C", "reuse-message", target_commit()),
             message(),
         ]),
     ])
@@ -154,14 +156,12 @@ fn rebase() -> Node {
                     flag("i", "interactive"),
                     flag("nf", "no-ff"),
                     flag("r", "root"),
-                    flag("q", "quiet"),
                     flag("ns", "no-stat"),
                     flag("s", "stat"),
                     flag("nu", "no-update-refs"),
                     flag("u", "update-refs"),
                     flag("nV", "no-verify"),
                     flag("V", "verify"),
-                    flag("v", "verbose"),
                 ]),
                 opt(arg(target_commit())),
             ]),
@@ -285,13 +285,13 @@ fn log() -> Node {
             ),
             flag("nd", "no-decorate"),
             flag("F", "follow"),
-            flag("me", "merges"),
+            flag("m", "merges"),
+            param("n", "max-count", Number),
             flag("a", "all"),
             flag("g", "graph"),
             flag("p", "patch"),
             flag("b", "ignore-space-change"),
             flag("w", "ignore-all-space"),
-            param("m", "max-count", Number),
             pretty(),
         ]),
         opt(arg(target_commit())),
@@ -322,8 +322,6 @@ fn push() -> Node {
             flag("ff", "force"),
             flag("f", "force-with-lease"),
             flag("d", "dry-run"),
-            flag("q", "quiet"),
-            flag("v", "verbose"),
             flag("V", "verify"),
             flag("nV", "no-verify"),
             flag("4", "ipv4"),
@@ -370,8 +368,8 @@ fn reflog() -> Node {
                     flag("sf", "stale-fix"),
                     flag("sw", "single-worktree"),
                     flag("u", "updateref"),
-                    param("e", "expire", reflog_expire_param()),
                     param("eu", "expire-unreachable", reflog_expire_param()),
+                    param("e", "expire", reflog_expire_param()),
                 ]),
             ]),
             word("l", "list"),
@@ -406,7 +404,7 @@ fn reset() -> Node {
             flag("k", "keep"),
             flag("r", "recurse-submodules"),
         ]))),
-        argset([flag("q", "quiet"), flag("nr", "no-refresh")]),
+        argset([flag("nr", "no-refresh")]),
         opt(arg(target_commit())),
     ])
 }
@@ -443,7 +441,7 @@ fn tag() -> Node {
             flag("oe", "omit-empty"),
             flag("oe", "omit-empty"),
             param_opt("mr", "merged", target_commit()),
-            param_opt("nmr", "no-merged", target_commit()),
+            param_opt("nm", "no-merged", target_commit()),
             flag("e", "edit"),
             message(),
         ]),
@@ -460,7 +458,7 @@ fn restore() -> Node {
             flag("o", "ours"),
             flag("t", "theirs"),
             flag("m", "merge"),
-            param("s", "source", Emit(CURSOR)),
+            param("s", "source", target_commit()),
             recurse_submodules(),
         ]),
     ])
@@ -473,7 +471,6 @@ fn status() -> Node {
             flag("s", "short"),
             flag("l", "long"),
             flag("z", "show-stash"),
-            flag("v", "verbose"),
             flag("a", "ahead-behind"),
             flag("na", "no-ahead-behind"),
             flag("r", "renames"),
@@ -516,15 +513,11 @@ fn worktree() -> Node {
                     flag("nt", "no-track"),
                     flag("l", "lock"),
                     flag("o", "orphan"),
-                    flag("q", "quiet"),
                 ]),
             ]),
-            seq([word("v", "list"), argset([flag("v", "verbose")])]),
+            seq([word("v", "list"), argset([])]),
             seq([word("m", "move"), argset([flag("f", "force")])]),
-            seq([
-                word("p", "prune"),
-                argset([flag("d", "dry-run"), flag("v", "verbose")]),
-            ]),
+            seq([word("p", "prune"), argset([flag("d", "dry-run")])]),
             seq([word("r", "remove"), argset([flag("f", "force")])]),
             seq([word("R", "repair"), argset([])]),
             seq([word("l", "lock"), argset([])]),
@@ -544,7 +537,6 @@ fn clean() -> Node {
             flag("f", "force"),
             flag("i", "interactive"),
             flag("d", "dry-run"),
-            flag("q", "quiet"),
         ]),
     ])
 }
@@ -565,12 +557,7 @@ fn stash() -> Node {
             seq([word("o", "pop"), argset([])]),
             seq([
                 word("s", "save"),
-                argset([
-                    flag("a", "all"),
-                    flag("p", "patch"),
-                    flag("s", "staged"),
-                    flag("q", "quiet"),
-                ]),
+                argset([flag("a", "all"), flag("p", "patch"), flag("s", "staged")]),
             ]),
             seq([word("l", "list"), argset([])]),
             seq([word("h", "show"), argset([])]),
@@ -615,10 +602,6 @@ fn target_commit() -> Node {
     ])
 }
 
-fn commit_or_cursor() -> Node {
-    or([target_commit(), word("=", CURSOR), Emit(CURSOR)])
-}
-
 fn message() -> Node {
     param("m", "message", seq([Emit("\""), Emit(CURSOR), Emit("\"")]))
 }
@@ -647,17 +630,12 @@ fn pretty() -> Node {
             word("rf", "reference"),
             word("r", "raw"),
             word("e", "email"),
-            word("=", "format:%"),
-            word("=t", "tformat:%"),
+            word("_", "format:%"),
+            word("t_", "tformat:%"),
         ]),
     )
 }
 
 fn reflog_expire_param() -> Node {
-    or([
-        word("a", "all"),
-        word("n", "never"),
-        word("=", CURSOR),
-        Emit(CURSOR),
-    ])
+    or([word("a", "all"), word("n", "never")])
 }
