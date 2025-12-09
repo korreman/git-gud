@@ -328,7 +328,7 @@ fn push() -> Node {
             flag("v", "verify"),
             flag("nv", "no-verify"),
         ]),
-        opt(arg(seq([remote(), opt(arg(target_branch()))]))),
+        opt(arg(seq([target_remote(), opt(arg(target_branch()))]))),
     ])
 }
 
@@ -581,7 +581,7 @@ fn target_branch() -> Node {
     ])
 }
 
-fn remote() -> Node {
+fn target_remote() -> Node {
     or([
         map_custom("c", current_remote),
         map_custom("o", main_remote),
