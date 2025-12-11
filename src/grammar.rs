@@ -139,6 +139,7 @@ fn diff() -> Node {
             flag("w", "ignore-all-space"),
         ]),
         opt(arg(target_commit())),
+        opt(arg(target_commit())),
     ])
 }
 
