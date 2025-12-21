@@ -38,38 +38,12 @@ pub fn ast() -> Node {
     ])
 }
 
-// ambiguity checklist:
-// - [x] add
-// - [x] blame
-// - [x] branch
-// - [x] commit
-// - [x] diff
-// - [x] rebase
-// - [x] fetch
-// - [x] checkout
-// - [x] init
-// - [x] clone
-// - [x] log
-// - [x] merge
-// - [x] push
-// - [x] pull
-// - [x] status
-// - [x] reflog
-// - [x] reset
-// - [x] switch
-// - [x] tag
-// - [x] restore
-// - [x] show
-// - [x] worktree
-// - [x] clean
-// - [x] stash
-
 fn add() -> Node {
     seq([
         Emit("add"),
         argset([
             flag("a", "all"),
-            flag("na", "no-all"),
+            flag("-a", "no-all"),
             flag("d", "dry-run"),
             flag("f", "force"),
             flag("i", "interactive"),
@@ -107,7 +81,7 @@ fn branch() -> Node {
             flag("d", "delete"),
             flag("f", "force"),
             param_opt("mg", "merged", c_h_m_o_u_target_rev()),
-            param_opt("nm", "no-merged", c_h_m_o_u_target_rev()),
+            param_opt("-m", "no-merged", c_h_m_o_u_target_rev()),
             flag("m", "move"),
             flag("r", "remotes"),
             t_track(),
@@ -127,7 +101,7 @@ fn commit() -> Node {
             param("c", "reedit-message", c_h_m_o_u_target_rev()),
             flag("d", "dry-run"),
             flag("e", "edit"),
-            flag("ne", "no-edit"),
+            flag("-e", "no-edit"),
             param(
                 "f",
                 "fixup",
@@ -137,16 +111,16 @@ fn commit() -> Node {
                 ]),
             ),
             param_opt("g", "gpg-sign", fail()),
-            flag("ng", "no-gpg-sign"),
+            flag("-g", "no-gpg-sign"),
             flag("i", "include"),
             m_message(),
             flag("o", "only"),
             param("sq", "squash", c_h_m_o_u_target_rev()),
             flag("q", "status"),
-            flag("nq", "no-status"),
+            flag("-q", "no-status"),
             flag("s", "signoff"),
             flag("v", "verify"),
-            flag("nv", "no-verify"),
+            flag("-v", "no-verify"),
         ]),
     ])
 }
@@ -157,8 +131,8 @@ fn diff() -> Node {
         argset([
             da_diff_algorithm(),
             flag("ih", "indent-heuristic"),
-            flag("nih", "no-indent-heuristic"),
-            flag("ni", "no-index"),
+            flag("-ih", "no-indent-heuristic"),
+            flag("-i", "no-index"),
             flag("p", "patience"),
             flag("r", "raw"),
             flag("ss", "shortstat"),
@@ -191,13 +165,13 @@ fn rebase() -> Node {
                     da_diff_algorithm(),
                     flag("i", "interactive"),
                     flag("r", "root"),
-                    flag("nf", "no-ff"),
+                    flag("-f", "no-ff"),
                     flag("s", "stat"),
-                    flag("ns", "no-stat"),
+                    flag("-s", "no-stat"),
                     flag("u", "update-refs"),
-                    flag("nu", "no-update-refs"),
+                    flag("-u", "no-update-refs"),
                     flag("v", "verify"),
-                    flag("nv", "no-verify"),
+                    flag("-v", "no-verify"),
                 ]),
                 separator(),
                 opt(arg(c_h_m_o_u_target_rev())),
@@ -214,14 +188,14 @@ fn fetch() -> Node {
             flag("6", "ipv6"),
             flag("A", "append"),
             flag("a", "all"),
-            flag("na", "no-all"),
+            flag("-a", "no-all"),
             flag("d", "dry-run"),
             flag("f", "force"),
             flag("k", "keep"),
             flag("m", "multiple"),
             flag("p", "prune"),
             flag("t", "tags"),
-            flag("nt", "no-tags"),
+            flag("-t", "no-tags"),
         ]),
         separator(),
         opt(seq([c_o_target_remote(), opt(c_h_m_o_u_target_branch())])),
@@ -239,9 +213,9 @@ fn checkout() -> Node {
             flag("d", "detach"),
             flag("f", "force"),
             flag("g", "guess"),
-            flag("ng", "no-guess"),
+            flag("-g", "no-guess"),
             flag("m", "merge"),
-            flag("no", "no-overlay"),
+            flag("-o", "no-overlay"),
             os_ts_ours_theirs(),
             flag("p", "patch"),
             t_track(),
@@ -260,8 +234,8 @@ fn show() -> Node {
             flag("w", "ignore-space-change"),
             f_pretty(),
             f("m", "m"),
-            flag("nn", "no-notes"),
-            flag("np", "no-patch"),
+            flag("-n", "no-notes"),
+            flag("-p", "no-patch"),
             flag("o", "oneline"),
             flag("s", "stat"),
         ]),
@@ -304,12 +278,12 @@ fn clone() -> Node {
             param("j", "jobs", Number),
             flag("l", "local"),
             flag("m", "mirror"),
-            flag("ng", "no-checkout"),
-            flag("nhl", "no-hardlinks"),
+            flag("-g", "no-checkout"),
+            flag("-hl", "no-hardlinks"),
             param("o", "origin", Emit(CURSOR)),
             flag("s", "sparse"),
             flag("t", "tags"),
-            flag("nt", "no-tags"),
+            flag("-t", "no-tags"),
             param("rf", "reference", Emit(CURSOR)),
             param("rv", "revision", Emit(CURSOR)),
         ]),
@@ -324,7 +298,7 @@ fn log() -> Node {
         argset([
             flag("1", "first-parent"),
             flag("ac", "abbrev-commit"),
-            flag("nac", "no-abbrev-commit"),
+            flag("-ac", "no-abbrev-commit"),
             flag("a", "all"),
             param_opt(
                 "d",
@@ -336,7 +310,7 @@ fn log() -> Node {
                     word("n", "no"),
                 ]),
             ),
-            flag("nd", "no-decorate"),
+            flag("-d", "no-decorate"),
             flag("F", "follow"),
             f_pretty(),
             flag("g", "graph"),
@@ -375,12 +349,12 @@ fn push() -> Node {
             flag("ff", "force"),
             flag("f", "force-with-lease"),
             flag("th", "thin"),
-            flag("nth", "no-thin"),
+            flag("-th", "no-thin"),
             flag("t", "tags"),
-            flag("nt", "no-tags"),
+            flag("-t", "no-tags"),
             flag("u", "set-upstream"),
             flag("v", "verify"),
-            flag("nv", "no-verify"),
+            flag("-v", "no-verify"),
         ]),
         separator(),
         opt(arg(seq([
@@ -400,15 +374,15 @@ fn pull() -> Node {
             flag("d", "dry-run"),
             flag("ffo", "ff-only"),
             flag("ff", "ff"),
-            flag("nff", "no-ff"),
+            flag("-ff", "no-ff"),
             flag("f", "force"),
             flag("p", "prune"),
             flag("r", "rebase"),
-            flag("nr", "no-rebase"),
+            flag("-r", "no-rebase"),
             flag("t", "tags"),
-            flag("nt", "no-tags"),
+            flag("-t", "no-tags"),
             flag("v", "verify"),
-            flag("nv", "no-verify"),
+            flag("-v", "no-verify"),
         ]),
     ])
 }
@@ -466,7 +440,7 @@ fn reset() -> Node {
                 flag("r", "recurse-submodules"),
                 flag("s", "soft"),
             ]),
-            flag("nr", "no-refresh"),
+            flag("-r", "no-refresh"),
         ]),
         separator(),
         opt(arg(c_h_m_o_u_target_rev())),
@@ -483,7 +457,7 @@ fn switch() -> Node {
             flag("fc", "force-create"),
             flag("f", "force"),
             flag("iow", "ignore-other-worktrees"),
-            flag("ng", "no-guess"),
+            flag("-g", "no-guess"),
             t_track(),
         ]),
         separator(),
@@ -502,9 +476,9 @@ fn tag() -> Node {
             flag("ic", "ignore-case"),
             flag("l", "list"),
             param_opt("mg", "merged", c_h_m_o_u_target_rev()),
-            param_opt("nm", "no-merged", c_h_m_o_u_target_rev()),
+            param_opt("-m", "no-merged", c_h_m_o_u_target_rev()),
             m_message(),
-            flag("ns", "no-sign"),
+            flag("-s", "no-sign"),
             flag("oe", "omit-empty"),
             flag("s", "sign"),
             flag("v", "verify"),
@@ -532,20 +506,17 @@ fn status() -> Node {
         Emit("status"),
         argset([
             flag("a", "ahead-behind"),
-            flag("na", "no-ahead-behind"),
+            flag("-a", "no-ahead-behind"),
             param("fr", "find-renames", Number),
             param(
                 "i",
                 "ignored",
-                opt(or([
-                    word("no", "no"),
-                    word("t", "traditional"),
-                    word("m", "matching"),
-                ])),
+                opt(or([word("t", "traditional"), word("m", "matching")])),
             ),
+            param("-i", "ignored", Emit("no")),
             flag("l", "long"),
             flag("r", "renames"),
-            flag("nr", "no-renames"),
+            flag("-r", "no-renames"),
             flag("s", "short"),
             param(
                 "u",
@@ -568,10 +539,10 @@ fn worktree() -> Node {
                     flag("d", "detach"),
                     flag("f", "force"),
                     flag("l", "lock"),
-                    flag("nc", "no-checkout"),
-                    flag("ng", "no-guess-remote"),
-                    flag("nrp", "no-relative-paths"),
-                    flag("nt", "no-track"),
+                    flag("-c", "no-checkout"),
+                    flag("-g", "no-guess-remote"),
+                    flag("-rp", "no-relative-paths"),
+                    flag("-t", "no-track"),
                     flag("o", "orphan"),
                 ]),
             ]),
@@ -690,7 +661,7 @@ fn t_track() -> Node {
             "track",
             opt(or([word("d", "direct"), word("i", "indirect")])),
         ),
-        flag("nt", "no-track"),
+        flag("-t", "no-track"),
     ])
 }
 
