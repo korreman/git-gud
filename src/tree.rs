@@ -6,6 +6,8 @@ use anyhow::Result;
 /// Data structure for constructing grammars.
 #[derive(Clone, Debug)]
 pub enum Node {
+    /// Succeeds without consuming anything at the end of a line.
+    Eol,
     /// Consume the given string and produce nothing.
     Eat(Str),
     /// Eat nothing and produce the given string.
@@ -44,8 +46,15 @@ impl Node {
         todo!()
     }
 
-    pub fn expand<'a>(&self, input: &'a str, output: &mut String) -> Option<&'a str> {
+    pub fn expand<'a>(&self, input: &'a str, eol: bool, output: &mut String) -> Option<&'a str> {
         match self {
+            Node::Eol => {
+                if input.is_empty() && eol {
+                    Some(input)
+                } else {
+                    None
+                }
+            }
             Node::Eat(shorthand) => {
                 let tail = input.strip_prefix(shorthand)?;
                 Some(tail)
@@ -73,7 +82,7 @@ impl Node {
             }
             Node::Or(nodes) => {
                 for node in nodes {
-                    if let Some(tail) = node.expand(input, output) {
+                    if let Some(tail) = node.expand(input, eol, output) {
                         return Some(tail);
                     }
                 }
@@ -83,7 +92,7 @@ impl Node {
                 let backtrack_len = output.len();
                 let mut input = input;
                 for node in nodes {
-                    let Some(tail) = node.expand(input, output) else {
+                    let Some(tail) = node.expand(input, eol, output) else {
                         output.truncate(backtrack_len);
                         return None;
                     };
@@ -99,7 +108,7 @@ impl Node {
                         if parsed[idx] {
                             continue;
                         }
-                        if let Some(tail) = node.expand(input, output) {
+                        if let Some(tail) = node.expand(input, eol, output) {
                             parsed[idx] = true;
                             input = tail;
                             continue 'outer;

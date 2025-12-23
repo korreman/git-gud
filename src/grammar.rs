@@ -42,7 +42,7 @@ fn add() -> Node {
     seq([
         Emit("add"),
         argset([
-            flag("a", "all"),
+            or([flag("a", "all"), seq([Eol, Emit("--all")])]),
             flag("-a", "no-all"),
             flag("d", "dry-run"),
             flag("f", "force"),
@@ -55,11 +55,6 @@ fn add() -> Node {
         ]),
         separator(),
         opt(arg(or([word(".", "."), word("/", ":/")]))),
-        opt(seq([
-            arg(Emit("&&")),
-            arg(Emit("git")),
-            or([map("c", arg(commit())), map("e", arg(rebase()))]),
-        ])),
     ])
 }
 

@@ -12,7 +12,7 @@ pub enum Sub {
     /// Generate an installer script that can be sourced during shell init.
     Installer,
     /// Expand a shorthand expression to a subcommand.
-    Expand { expr: String },
+    Expand { expr: String, cursor_char: char },
     /// Show the shorthand grammar.
     Grammar,
 }

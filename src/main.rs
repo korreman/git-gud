@@ -29,17 +29,32 @@ fn run() -> Result<()> {
             );
             print!("{with_executable}");
         }
-        cli::Sub::Expand { expr } => {
+        cli::Sub::Expand { expr, cursor_char } => {
             let ast = grammar::ast();
             debug!("{ast:#?}");
-            let mut result = String::new();
-            if let Some(tail) = ast.expand(&expr, &mut result)
-                && tail.is_empty()
+            let mut result = String::from("git ");
+            let eol = cursor_char != ' ';
+            if expr.starts_with('a')
+                && let Some(idx) = expr.find(['c', 'e'])
             {
-                println!("{}", result.trim());
+                let (first, second) = expr.split_at(idx);
+                let tail = ast.expand(first, true, &mut result);
+                if tail != Some("") {
+                    std::process::exit(1);
+                }
+                result.push_str(" && git ");
+
+                let tail = ast.expand(second, eol, &mut result);
+                if tail != Some("") {
+                    std::process::exit(1);
+                }
             } else {
-                std::process::exit(1);
+                let tail = ast.expand(&expr, eol, &mut result);
+                if tail != Some("") {
+                    std::process::exit(1);
+                }
             }
+            println!("{}", result.trim());
         }
         cli::Sub::Grammar => {
             todo!("showing the grammar is not supported yet");

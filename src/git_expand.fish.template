@@ -16,6 +16,6 @@ function _git_gud_expand_no_space
         and type -q $argv[1]
         return 1
     end
-    echo -n 'git '
-    ${GIT_GUD} expand -- $shortcmd (string sub --start 2 $argv[1])
+    set -f cursor_char (string sub --start (commandline --cursor) --length 1 (commandline))
+    ${GIT_GUD} expand -- (string sub --start 2 $argv[1]) "$cursor_char"
 end
