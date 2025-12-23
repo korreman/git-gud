@@ -81,7 +81,7 @@ fn branch() -> Node {
             flag("d", "delete"),
             flag("f", "force"),
             param_opt("mg", "merged", c_h_m_o_u_target_rev()),
-            param_opt("-m", "no-merged", c_h_m_o_u_target_rev()),
+            param_opt("-mg", "no-merged", c_h_m_o_u_target_rev()),
             flag("m", "move"),
             flag("r", "remotes"),
             t_track(),
@@ -147,19 +147,21 @@ fn diff() -> Node {
     ])
 }
 
-// TODO: this one could maybe be contextual,
-// so subcommands only work if we're in a rebase,
-// and targets only work if we're out of the rebase again
 fn rebase() -> Node {
     seq([
         Emit("rebase"),
         or([
-            arg(flag("a", "abort")),
-            arg(flag("c", "continue")),
-            arg(flag("e", "edit-todo")),
-            arg(flag("h", "show-current-patch")),
-            arg(flag("q", "quit")),
-            arg(flag("s", "skip")),
+            seq([
+                in_rebase(),
+                or([
+                    arg(flag("a", "abort")),
+                    arg(flag("c", "continue")),
+                    arg(flag("e", "edit-todo")),
+                    arg(flag("h", "show-current-patch")),
+                    arg(flag("q", "quit")),
+                    arg(flag("s", "skip")),
+                ]),
+            ]),
             seq([
                 argset([
                     da_diff_algorithm(),
@@ -168,8 +170,8 @@ fn rebase() -> Node {
                     flag("-f", "no-ff"),
                     flag("s", "stat"),
                     flag("-s", "no-stat"),
-                    flag("u", "update-refs"),
-                    flag("-u", "no-update-refs"),
+                    flag("ur", "update-refs"),
+                    flag("-ur", "no-update-refs"),
                     flag("v", "verify"),
                     flag("-v", "no-verify"),
                 ]),
@@ -183,22 +185,38 @@ fn rebase() -> Node {
 fn fetch() -> Node {
     seq([
         Emit("fetch"),
-        argset([
-            flag("4", "ipv4"),
-            flag("6", "ipv6"),
-            flag("A", "append"),
-            flag("a", "all"),
-            flag("-a", "no-all"),
-            flag("d", "dry-run"),
-            flag("f", "force"),
-            flag("k", "keep"),
-            flag("m", "multiple"),
-            flag("p", "prune"),
-            flag("t", "tags"),
-            flag("-t", "no-tags"),
+        or([
+            seq([arg(flag("a", "all")), fetch_args()]),
+            seq([
+                arg(flag("m", "multiple")),
+                fetch_args(),
+                separator(),
+                opt(arg(c_o_target_remote())),
+            ]),
+            seq([
+                fetch_args(),
+                separator(),
+                opt(seq([
+                    arg(c_o_target_remote()),
+                    opt(arg(c_h_m_o_u_target_branch())),
+                ])),
+            ]),
         ]),
-        separator(),
-        opt(seq([c_o_target_remote(), opt(c_h_m_o_u_target_branch())])),
+    ])
+}
+
+fn fetch_args() -> Node {
+    argset([
+        flag("4", "ipv4"),
+        flag("6", "ipv6"),
+        flag("A", "append"),
+        flag("-a", "no-all"),
+        flag("d", "dry-run"),
+        flag("f", "force"),
+        flag("k", "keep"),
+        flag("p", "prune"),
+        flag("t", "tags"),
+        flag("-t", "no-tags"),
     ])
 }
 
@@ -214,18 +232,18 @@ fn checkout() -> Node {
             flag("f", "force"),
             flag("g", "guess"),
             flag("-g", "no-guess"),
-            flag("m", "merge"),
+            flag("mg", "merge"),
             flag("-o", "no-overlay"),
             os_ts_ours_theirs(),
             flag("p", "patch"),
             t_track(),
         ]),
-        opt(Eat(",")),
+        separator(),
         opt(arg(c_h_m_o_u_target_rev())),
     ])
 }
 
-// TODO: Show have most of the same options as diff command
+// TODO: Should have most of the same options as diff command
 fn show() -> Node {
     seq([
         Emit("show"),
@@ -314,7 +332,7 @@ fn log() -> Node {
             flag("F", "follow"),
             f_pretty(),
             flag("g", "graph"),
-            flag("m", "merges"),
+            flag("mg", "merges"),
             param("n", "max-count", Number),
             flag("o", "oneline"),
             flag("p", "patch"),
@@ -331,9 +349,10 @@ fn merge() -> Node {
     seq([
         Emit("merge"),
         arg(or([
-            flag("a", "abort"),
-            flag("c", "continue"),
-            flag("q", "quit"),
+            seq([
+                in_merge(),
+                or([flag("a", "abort"), flag("c", "continue"), flag("q", "quit")]),
+            ]),
             seq([argset([]), separator(), opt(c_h_m_o_u_target_rev())]),
         ])),
     ])
@@ -436,7 +455,7 @@ fn reset() -> Node {
             or([
                 flag("h", "hard"),
                 flag("k", "keep"),
-                flag("m", "merge"),
+                flag("mg", "merge"),
                 flag("r", "recurse-submodules"),
                 flag("s", "soft"),
             ]),
@@ -476,7 +495,7 @@ fn tag() -> Node {
             flag("ic", "ignore-case"),
             flag("l", "list"),
             param_opt("mg", "merged", c_h_m_o_u_target_rev()),
-            param_opt("-m", "no-merged", c_h_m_o_u_target_rev()),
+            param_opt("-mg", "no-merged", c_h_m_o_u_target_rev()),
             m_message(),
             flag("-s", "no-sign"),
             flag("oe", "omit-empty"),
@@ -491,7 +510,7 @@ fn restore() -> Node {
         Emit("restore"),
         argset([
             flag("i", "staged"), // i for index
-            flag("m", "merge"),
+            flag("mg", "merge"),
             os_ts_ours_theirs(),
             flag("p", "patch"),
             rs_recurse_submodules(),
@@ -690,4 +709,20 @@ fn a_n_reflog_expire_param() -> Node {
 
 fn os_ts_ours_theirs() -> Node {
     or([flag("os", "ours"), flag("ts", "theirs")])
+}
+
+fn in_rebase() -> Node {
+    Custom(crate::helpers::in_rebase)
+}
+
+fn in_revert() -> Node {
+    Custom(crate::helpers::in_rebase)
+}
+
+fn in_merge() -> Node {
+    Custom(crate::helpers::in_rebase)
+}
+
+fn in_cherry_pick() -> Node {
+    Custom(crate::helpers::in_rebase)
 }

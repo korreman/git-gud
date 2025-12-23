@@ -103,3 +103,27 @@ fn tracked_remote(branch: &str) -> Option<String> {
         branch,
     ])
 }
+
+// Check if a rebase is in progress.
+pub fn in_rebase() -> Option<String> {
+    let r = git_query_command(&["rev-parse", "--verify", "REBASE_HEAD"]);
+    r.map(|_| "".to_string())
+}
+
+// Check if a merge is in progress.
+pub fn in_merge() -> Option<String> {
+    let r = git_query_command(&["rev-parse", "--verify", "MERGE_HEAD"]);
+    r.map(|_| "".to_string())
+}
+
+// Check if a revert is in progress.
+pub fn in_revert() -> Option<String> {
+    let r = git_query_command(&["rev-parse", "--verify", "REVERT_HEAD"]);
+    r.map(|_| "".to_string())
+}
+
+// Check if a cherry pick is in progress.
+pub fn in_cherry_pick() -> Option<String> {
+    let r = git_query_command(&["rev-parse", "--verify", "CHERRY_PICK_HEAD"]);
+    r.map(|_| "".to_string())
+}
