@@ -55,6 +55,11 @@ fn add() -> Node {
         ]),
         separator(),
         opt(arg(or([word(".", "."), word("/", ":/")]))),
+        opt(seq([
+            arg(Emit("&&")),
+            arg(Emit("git")),
+            or([map("c", arg(commit())), map("e", arg(rebase()))]),
+        ])),
     ])
 }
 
