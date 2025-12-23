@@ -101,7 +101,7 @@ fn commit() -> Node {
             param("c", "reedit-message", c_h_m_o_u_target_rev()),
             flag("d", "dry-run"),
             flag("e", "edit"),
-            flag("-e", "no-edit"),
+            flag("n", "no-edit"),
             param(
                 "f",
                 "fixup",
