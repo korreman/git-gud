@@ -599,7 +599,7 @@ fn stash() -> Node {
             seq([word("b", "branch"), argset([])]),
             seq([word("c", "clear"), argset([])]),
             seq([word("d", "drop"), argset([])]),
-            seq([word("h", "show"), argset([])]),
+            seq([word("v", "show"), argset([])]),
             seq([word("l", "list"), argset([])]),
             seq([word("m", "create"), argset([])]),
             seq([word("o", "pop"), argset([])]),
