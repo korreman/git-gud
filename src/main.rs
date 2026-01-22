@@ -21,13 +21,14 @@ fn main() {
 fn run() -> Result<()> {
     let cli = cli::Cli::parse();
     match cli.subcommand {
-        cli::Sub::Installer => {
+        cli::Sub::Installer { default_command } => {
             let executable = std::env::current_exe().context("couldn't get own executable path")?;
             let with_executable = INSTALLER_SCRIPT.replace(
                 "${GIT_GUD}",
                 executable.to_str().context("executable path isn't UTF-8")?,
             );
-            print!("{with_executable}");
+            let with_default = with_executable.replace("${DEFAULT_COMMAND}", &default_command);
+            print!("{with_default}");
         }
         cli::Sub::Expand { expr, cursor_char } => {
             let ast = grammar::ast();

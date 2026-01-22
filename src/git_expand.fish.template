@@ -3,7 +3,7 @@
 abbr --add --function _git_expand_base_command g
 function _git_expand_base_command
     if test (commandline) = g
-        echo git status
+        echo git ${DEFAULT_COMMAND}
     else
         echo git
     end
