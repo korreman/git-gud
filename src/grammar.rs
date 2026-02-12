@@ -13,6 +13,7 @@ pub fn ast() -> Node {
         map("c", commit()),
         map("d", diff()),
         map("e", rebase()),
+        map("fer", for_each_ref()),
         map("f", fetch()),
         map("g", checkout()),
         // h
@@ -217,6 +218,15 @@ fn fetch_args() -> Node {
         flag("p", "prune"),
         flag("t", "tags"),
         flag("-t", "no-tags"),
+    ])
+}
+
+fn for_each_ref() -> Node {
+    seq([
+        Emit("for-each-ref"),
+        argset([param("f", "format", custom_quoted_single())]),
+        argset([flag("i", "stdin")]),
+        argset([param("n", "count", Number)]),
     ])
 }
 
@@ -670,7 +680,7 @@ fn c_h_m_o_u_target_rev() -> Node {
 }
 
 fn m_message() -> Node {
-    param("m", "message", seq([Emit("\""), Emit(CURSOR), Emit("\"")]))
+    param("m", "message", custom_quoted())
 }
 
 fn t_track() -> Node {
@@ -725,4 +735,12 @@ fn in_merge() -> Node {
 
 fn in_cherry_pick() -> Node {
     Custom(crate::helpers::in_rebase)
+}
+
+fn custom_quoted() -> Node {
+    seq([Emit("\""), Emit(CURSOR), Emit("\"")])
+}
+
+fn custom_quoted_single() -> Node {
+    seq([Emit("'"), Emit(CURSOR), Emit("'")])
 }
