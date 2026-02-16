@@ -9,7 +9,7 @@ function _git_expand_base_command
     end
 end
 
-abbr --add _git_gud_no_space --regex 'g\S+' --function _git_gud_expand_no_space --set-cursor
+abbr --add _git_gud_no_space --regex 'g\S+' --function _git_gud_expand_no_space --set-cursor='{GIT_GUD_CURSOR}'
 
 function _git_gud_expand_no_space
     if test $argv[1] != git

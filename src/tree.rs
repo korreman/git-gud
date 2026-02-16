@@ -123,7 +123,7 @@ impl Node {
 }
 
 // Useful combinators
-pub const CURSOR: &'static str = "%";
+pub const CURSOR: &'static str = "{GIT_GUD_CURSOR}";
 
 pub fn fail() -> Node {
     or([])
