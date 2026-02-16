@@ -224,10 +224,66 @@ fn fetch_args() -> Node {
 fn for_each_ref() -> Node {
     seq([
         Emit("for-each-ref"),
-        argset([param("f", "format", custom_quoted_single())]),
-        argset([flag("i", "stdin")]),
-        argset([param("n", "count", Number)]),
+        argset([
+            flag("c", "contains"),     // TODO: object param
+            flag("nc", "no-contains"), // TODO: object param
+            param(
+                "f",
+                "format",
+                or([
+                    seq([Emit("'"), for_each_ref_fields(), Emit("'")]),
+                    custom_quoted_single(),
+                ]),
+            ),
+            param("irr", "include-root-refs", custom_quoted_single()),
+            flag("i", "ignore-case"),
+            flag("m", "merged"),     // TODO: object param
+            flag("nm", "no-merged"), // TODO: object param
+            param("n", "count", Number),
+            flag("oe", "omit-empty"),
+            param("e", "exclude", custom_quoted_single()),
+            param("s", "sort", or(for_each_ref_field_name())),
+        ]),
     ])
+}
+
+fn for_each_ref_fields() -> Node {
+    let fields = for_each_ref_field_name().map(|f| seq([Emit("%("), f, Emit(")")]));
+    argset_one(fields)
+}
+
+fn for_each_ref_field_name() -> [Node; 28] {
+    [
+        // TODO: stuff that targets <commitish> could be implemented here
+        word("al", "align:left"),
+        word("am", "align:middle"),
+        word("ar", "align:right"),
+        word("cb", "contents:body"),
+        word("csb", "contents:subject"),
+        word("cs", "contents:size"),
+        word("csg", "contents:signature"),
+        word("cl", "contents:lines"),
+        word("d", "describe"),
+        word("db", "deltabase"),
+        word("h", "HEAD"),
+        word("on", "objectname"),
+        word("os", "objectsize"),
+        word("ot", "objecttype"),
+        word("p", "push"),
+        word("rn", "refname"),
+        word("rns", "refname:short"),
+        word("rs", "raw:size"),
+        word("sf", "signature:fingerprint"),
+        word("sg", "signature:grade"),
+        word("sk", "signature:key"),
+        word("spkf", "signature:primarykeyfingerprint"),
+        word("sr", "symref"),
+        word("s", "signature"),
+        word("ss", "signature:signer"),
+        word("stl", "signature:trustlevel"),
+        word("u", "upstream"),
+        word("wp", "worktreepath"),
+    ]
 }
 
 fn checkout() -> Node {

@@ -1,7 +1,9 @@
+use anyhow::Result;
+use log::trace;
+
 pub type Str = &'static str;
 
 pub use Node::*;
-use anyhow::Result;
 
 /// Data structure for constructing grammars.
 #[derive(Clone, Debug)]
@@ -23,8 +25,9 @@ pub enum Node {
     /// Repeatedly try running each child, one after the other.
     /// When a child succeeds, it will no longer be tried.
     /// Finishes when none of the remaining children succeed.
-    /// Always succeeds.
-    Set(Vec<Node>),
+    /// The bool specifies whether at least one child must match.
+    /// If set to `false`, the node will always succeed, even if no children match.
+    Set(Vec<Node>, bool),
 }
 
 impl Node {
@@ -50,45 +53,57 @@ impl Node {
         match self {
             Node::Eol => {
                 if input.is_empty() && eol {
+                    trace!("match");
                     Some(input)
                 } else {
                     None
                 }
             }
             Node::Eat(shorthand) => {
+                trace!("eat {shorthand} | {input}");
                 let tail = input.strip_prefix(shorthand)?;
+                trace!("match | {tail:?}");
                 Some(tail)
             }
             Node::Emit(result) => {
+                trace!("emit {result:?} | {input}");
                 output.push_str(result);
                 Some(input)
             }
             Node::Number => {
+                trace!("number | {input}");
                 let split_idx = input
                     .char_indices()
                     .find_map(|(idx, c)| if c.is_ascii_digit() { None } else { Some(idx) })
                     .unwrap_or(input.len());
+                trace!("split_off: {split_idx}");
                 if split_idx == 0 {
                     return None;
                 }
                 let (number, tail) = input.split_at(split_idx);
+                trace!("match: {number} | {tail}");
                 output.push_str(number);
                 Some(tail)
             }
             Node::Custom(func) => {
+                trace!("custom func | {input}");
                 let expansion = func()?;
+                trace!("match: {expansion} | {input}");
                 output.push_str(&expansion);
                 Some(input)
             }
             Node::Or(nodes) => {
+                trace!("or {{..}} | {input}");
                 for node in nodes {
                     if let Some(tail) = node.expand(input, eol, output) {
+                        trace!("or match | {tail}");
                         return Some(tail);
                     }
                 }
                 None
             }
             Node::Seq(nodes) => {
+                trace!("seq {{..}} | {input}");
                 let backtrack_len = output.len();
                 let mut input = input;
                 for node in nodes {
@@ -98,9 +113,11 @@ impl Node {
                     };
                     input = tail;
                 }
+                trace!("seq match | {input}");
                 Some(input)
             }
-            Node::Set(nodes) => {
+            Node::Set(nodes, one_minimum) => {
+                trace!("set {{..}} | {input}");
                 let mut input = input;
                 let mut parsed = vec![false; nodes.len()];
                 'outer: loop {
@@ -116,7 +133,13 @@ impl Node {
                     }
                     break;
                 }
-                Some(input)
+                if *one_minimum && !parsed.iter().any(|x| *x) {
+                    trace!("set empty, one required");
+                    None
+                } else {
+                    trace!("set match | {input}");
+                    Some(input)
+                }
             }
         }
     }
@@ -162,20 +185,24 @@ pub fn seq<const N: usize>(nodes: [Node; N]) -> Node {
 }
 
 pub fn opt(node: Node) -> Node {
-    Set(vec![node])
+    Set(vec![node], false)
 }
 
 pub fn set<const N: usize>(nodes: [Node; N]) -> Node {
-    Set(nodes.to_vec())
+    Set(nodes.to_vec(), false)
 }
 
-pub fn prefix_set<const N: usize>(p: Str, nodes: [Node; N]) -> Node {
+pub fn prefix_set<const N: usize>(p: Str, nodes: [Node; N], one_minimum: bool) -> Node {
     let nodes = nodes.into_iter().map(|node| prefix(p, node)).collect();
-    Set(nodes)
+    Set(nodes, one_minimum)
 }
 
 pub fn argset<const N: usize>(nodes: [Node; N]) -> Node {
-    prefix_set(" ", nodes)
+    prefix_set(" ", nodes, false)
+}
+
+pub fn argset_one<const N: usize>(nodes: [Node; N]) -> Node {
+    prefix_set(" ", nodes, true)
 }
 
 pub fn number_or_zero() -> Node {
