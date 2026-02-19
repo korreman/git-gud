@@ -10,6 +10,7 @@ pub fn ast() -> Node {
         map("a", add()),
         map("bl", blame()),
         map("b", branch()),
+        map("cat", cat_file()),
         map("c", commit()),
         map("d", diff()),
         map("e", rebase()),
@@ -27,6 +28,7 @@ pub fn ast() -> Node {
         map("p", push()),
         map("q", status()), // query
         map("rl", reflog()),
+        map("rp", rev_parse()),
         map("r", reset()),
         map("s", switch()),
         map("t", tag()),
@@ -90,6 +92,25 @@ fn branch() -> Node {
             flag("v", "verbose"),
             flag("v", "verbose"),
         ]),
+    ])
+}
+
+fn cat_file() -> Node {
+    seq([
+        Emit("cat-file"),
+        or([
+            arg(or([f("p", "p"), f("e", "e"), f("tp", "t"), f("s", "s")])),
+            arg(object_type()),
+        ]),
+    ])
+}
+
+fn object_type() -> Node {
+    or([
+        word("b", "blob"),
+        word("tg", "tag"),
+        word("tr", "tree"),
+        word("c", "commit"),
     ])
 }
 
@@ -512,6 +533,10 @@ fn reflog() -> Node {
             ]),
         ])),
     ])
+}
+
+fn rev_parse() -> Node {
+    seq([Emit("rev-parse"), argset([])])
 }
 
 fn reset() -> Node {
