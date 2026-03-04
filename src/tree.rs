@@ -1,3 +1,5 @@
+use std::fmt::{self, Display, Write};
+
 use anyhow::Result;
 use log::trace;
 
@@ -17,7 +19,7 @@ pub enum Node {
     /// Eat a number and produce it.
     Number,
     /// Run a function and produce its output.
-    Custom(fn() -> Option<String>),
+    Custom(fn() -> Option<String>, &'static str),
     /// Try to run each child until one succeeds.
     Or(Vec<Node>),
     /// Run every child, fail if any child fails.
@@ -47,6 +49,43 @@ impl Node {
     /// The entire output shouldn't be able to depend on the final character.
     fn _find_ambiguities(&self) -> Result<(), Vec<(String, Vec<String>)>> {
         todo!()
+    }
+
+    pub fn normalize(self) -> Self {
+        let new_self = self.flatten();
+        match new_self {
+            Seq(mut nodes) => {
+                nodes.sort_by(|a, b| match (a, b) {
+                    (Eat(_), Eat(_)) => std::cmp::Ordering::Equal,
+                    (Eat(_), _) => std::cmp::Ordering::Less,
+                    (_, Eat(_)) => std::cmp::Ordering::Greater,
+                    _ => std::cmp::Ordering::Equal,
+                });
+                Seq(nodes.into_iter().map(Self::normalize).collect())
+            }
+            Or(nodes) => Or(nodes.into_iter().map(Self::normalize).collect()),
+            Set(nodes, b) => Set(nodes.into_iter().map(Self::normalize).collect(), b),
+            x => x,
+        }
+    }
+
+    pub fn flatten(self) -> Self {
+        match self {
+            Seq(nodes) => {
+                let mut result = Vec::new();
+                for node in nodes {
+                    let flattened = node.flatten();
+                    match flattened {
+                        Seq(mut internal) => result.append(&mut internal),
+                        n => result.push(n),
+                    }
+                }
+                Seq(result)
+            }
+            Or(nodes) => Or(nodes.into_iter().map(Self::flatten).collect()),
+            Set(nodes, b) => Set(nodes.into_iter().map(Self::flatten).collect(), b),
+            x => x,
+        }
     }
 
     pub fn expand<'a>(&self, input: &'a str, eol: bool, output: &mut String) -> Option<&'a str> {
@@ -85,7 +124,7 @@ impl Node {
                 output.push_str(number);
                 Some(tail)
             }
-            Node::Custom(func) => {
+            Node::Custom(func, ..) => {
                 trace!("custom func | {input}");
                 let expansion = func()?;
                 trace!("match: {expansion} | {input}");
@@ -143,10 +182,67 @@ impl Node {
             }
         }
     }
+
+    fn fmt_helper(&self, f: &mut fmt::Formatter<'_>, indent: u32) -> fmt::Result {
+        match self {
+            Eol => f.write_str("<EOL> ⇒ ")?,
+            Eat(e) => {
+                f.write_str(e)?;
+                f.write_str(" ⇒ ")?;
+            }
+            Emit(e) => f.write_str(e)?,
+            Number => f.write_str("<NUMBER>")?,
+            Custom(_, desc) => f.write_fmt(format_args!("<{desc}>"))?,
+            Seq(nodes) => {
+                f.write_char('[')?;
+                for node in nodes {
+                    node.fmt_helper(f, indent + 1)?;
+                }
+                f.write_char(']')?;
+            }
+            Or(nodes) => {
+                write_newline_indent(f, indent)?;
+                f.write_str("|| [")?;
+                for node in nodes {
+                    write_newline_indent(f, indent + 1)?;
+                    node.fmt_helper(f, indent + 1)?;
+                }
+                write_newline_indent(f, indent)?;
+                f.write_str("]")?;
+            }
+            Set(nodes, _) => {
+                write_newline_indent(f, indent)?;
+                f.write_str("⊆ [")?;
+                for node in nodes {
+                    write_newline_indent(f, indent + 1)?;
+                    node.fmt_helper(f, indent + 1)?;
+                }
+                write_newline_indent(f, indent)?;
+                f.write_str("]")?;
+            }
+        }
+        Ok(())
+    }
+}
+
+fn write_newline_indent(f: &mut fmt::Formatter<'_>, indent: u32) -> fmt::Result {
+    f.write_char('\n')?;
+    for _ in 0..indent {
+        f.write_str("  ")?;
+    }
+    Ok(())
+}
+
+impl Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.fmt_helper(f, 0)
+    }
 }
 
 // Useful combinators
-pub const CURSOR: &'static str = "{GIT_GUD_CURSOR}";
+pub fn cursor() -> Node {
+    Custom(|| Some("{GIT_GUD_CURSOR}".to_owned()), "CURSOR")
+}
 
 pub fn fail() -> Node {
     or([])
@@ -209,18 +305,18 @@ pub fn number_or_zero() -> Node {
     or([Number, Emit("0")])
 }
 
-pub fn map_custom(i: Str, func: fn() -> Option<String>) -> Node {
-    seq([Eat(i), Custom(func)])
+pub fn map_custom(i: Str, func: fn() -> Option<String>, desc: &'static str) -> Node {
+    seq([Eat(i), Custom(func, desc)])
 }
 
 pub fn param(i: Str, o: Str, arg: Node) -> Node {
-    seq([Emit("--"), word(i, o), prefix("=", or([arg, Emit(CURSOR)]))])
+    seq([Emit("--"), word(i, o), prefix("=", or([arg, cursor()]))])
 }
 
 pub fn param_opt(i: Str, o: Str, arg: Node) -> Node {
     seq([
         Emit("--"),
         word(i, o),
-        opt(prefix("=", or([arg, map("_", Emit(CURSOR))]))),
+        opt(prefix("=", or([arg, map("_", cursor())]))),
     ])
 }

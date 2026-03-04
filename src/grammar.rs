@@ -3,9 +3,11 @@ use crate::tree::*;
 
 /// Generate the grammar for all commands.
 pub fn ast() -> Node {
-    // two-letter shortcuts we cannot use:
+    // names we might want to avoid:
     // gh: github cli
     // go: golang compiler
+    // gdb: GNU debugger
+    // gz: gzip
     or([
         map("a", add()),
         map("bl", blame()),
@@ -66,7 +68,7 @@ fn blame() -> Node {
         Emit("blame"),
         argset([
             flag("1", "first-parent"),
-            seq([f("l", "L"), Emit(" "), Emit(CURSOR)]),
+            seq([f("l", "L"), Emit(" "), cursor()]),
             flag("n", "show-number"),
             f("s", "s"),
             f("t", "t"),
@@ -129,7 +131,7 @@ fn commit() -> Node {
                 "fixup",
                 seq([
                     opt(set([word("a", "amend:"), word("r", "reword:")])),
-                    or([c_h_m_o_u_target_rev(), Emit(CURSOR)]),
+                    or([c_h_m_o_u_target_rev(), cursor()]),
                 ]),
             ),
             param_opt("g", "gpg-sign", fail()),
@@ -364,8 +366,8 @@ fn init() -> Node {
                 "ref-format",
                 or([word("f", "files"), word("t", "reftable")]),
             ),
-            param("ib", "initial-branch", Emit(CURSOR)),
-            param("t", "template", Emit(CURSOR)),
+            param("ib", "initial-branch", cursor()),
+            param("t", "template", cursor()),
         ]),
     ])
 }
@@ -376,21 +378,21 @@ fn clone() -> Node {
         argset([
             flag("0", "bare"),
             flag("1", "single-branch"),
-            param("b", "branch", Emit(CURSOR)),
+            param("b", "branch", cursor()),
             param("d", "depth", Number),
-            param("d", "dissociate", Emit(CURSOR)),
+            param("d", "dissociate", cursor()),
             flag("h", "shared"),
             param("j", "jobs", Number),
             flag("l", "local"),
             flag("m", "mirror"),
             flag("-g", "no-checkout"),
             flag("-hl", "no-hardlinks"),
-            param("o", "origin", Emit(CURSOR)),
+            param("o", "origin", cursor()),
             flag("s", "sparse"),
             flag("t", "tags"),
             flag("-t", "no-tags"),
-            param("rf", "reference", Emit(CURSOR)),
-            param("rv", "revision", Emit(CURSOR)),
+            param("rf", "reference", cursor()),
+            param("rv", "revision", cursor()),
         ]),
         separator(),
         opt(arg(c_h_m_o_u_target_rev())),
@@ -733,18 +735,18 @@ fn da_diff_algorithm() -> Node {
 
 fn c_h_m_o_u_target_branch() -> Node {
     or([
-        map_custom("c", current_branch),
+        map_custom("c", current_branch, "CURRENT BRANCH"),
         word("h", "HEAD"),
-        map_custom("m", main_branch),
-        map_custom("o", main_remote_head),
-        map_custom("u", current_upstream),
+        map_custom("m", main_branch, "MAIN BRANCH"),
+        map_custom("o", main_remote_head, "MAIN REMOTE HEAD"),
+        map_custom("u", current_upstream, "CURRENT UPSTREAM"),
     ])
 }
 
 fn c_o_target_remote() -> Node {
     or([
-        map_custom("c", current_remote),
-        map_custom("o", main_remote),
+        map_custom("c", current_remote, "CURRENT REMOTE"),
+        map_custom("o", main_remote, "MAIN REMOTE"),
     ])
 }
 
@@ -795,7 +797,7 @@ fn f_pretty() -> Node {
 }
 
 fn a_n_reflog_expire_param() -> Node {
-    or([word("a", "all"), word("n", "never"), map("_", Emit(CURSOR))])
+    or([word("a", "all"), word("n", "never"), map("_", cursor())])
 }
 
 fn os_ts_ours_theirs() -> Node {
@@ -803,25 +805,25 @@ fn os_ts_ours_theirs() -> Node {
 }
 
 fn in_rebase() -> Node {
-    Custom(crate::helpers::in_rebase)
+    Custom(crate::helpers::in_rebase, "MUST BE IN REBASE")
 }
 
 fn in_revert() -> Node {
-    Custom(crate::helpers::in_rebase)
+    Custom(crate::helpers::in_revert, "MUST BE IN REVERT")
 }
 
 fn in_merge() -> Node {
-    Custom(crate::helpers::in_rebase)
+    Custom(crate::helpers::in_merge, "MUST BE IN MERGE")
 }
 
 fn in_cherry_pick() -> Node {
-    Custom(crate::helpers::in_rebase)
+    Custom(crate::helpers::in_cherry_pick, "MUST BE IN CHERRY-PICK")
 }
 
 fn custom_quoted() -> Node {
-    seq([Emit("\""), Emit(CURSOR), Emit("\"")])
+    seq([Emit("\""), cursor(), Emit("\"")])
 }
 
 fn custom_quoted_single() -> Node {
-    seq([Emit("'"), Emit(CURSOR), Emit("'")])
+    seq([Emit("'"), cursor(), Emit("'")])
 }

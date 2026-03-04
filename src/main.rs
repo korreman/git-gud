@@ -58,7 +58,8 @@ fn run() -> Result<()> {
             println!("{}", result.trim());
         }
         cli::Sub::Grammar => {
-            todo!("showing the grammar is not supported yet");
+            let ast = grammar::ast().normalize();
+            println!("{}", ast);
         }
     }
     Ok(())
