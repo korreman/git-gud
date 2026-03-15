@@ -32,11 +32,13 @@ pub fn main_remote_head() -> Option<String> {
 
 /// Get the (first) branch tracking the HEAD of the main remote.
 /// This can commonly be interpreted as your "main" branch of the local repository.
+/// As a fallback, try to get the default init branch from the git config.
 pub fn main_branch() -> Option<String> {
     let main_remote_head = main_remote_head()?;
     let branches = git_query_command(&[
         "for-each-ref",
         "--format=%(refname:short) %(upstream:short)",
+        "refs/heads/*",
     ])?;
     //println!("mrh: {main_remote_head}");
     for line in branches.lines() {
@@ -47,7 +49,7 @@ pub fn main_branch() -> Option<String> {
             }
         }
     }
-    None
+    git_query_command(&["config", "--get", "init.defaultBranch"])
 }
 
 /// Get the upstream remote of the current branch.
