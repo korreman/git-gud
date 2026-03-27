@@ -34,11 +34,11 @@ In these examples:
 
 | Shorthand | Command |
 |---|---|
-| `ga` | `git add` |
+| `ga` | `git add --all` |
 | `gcm` | `git commit --message="%"` |
 | `gapcm` | `git add --patch --all && git commit --message="%"` |
 | `gaec` | `git add --all && git rebase --continue` |
-| `genum` | `git rebase --no-update-refs <MAIN_BRANCH>` |
+| `ge-urm` | `git rebase --no-update-refs <MAIN_BRANCH>` |
 | `gkmd20b` | `git clone --mirror --depth=20 --branch=%` |
 
 ## Advantages over aliases
