@@ -157,6 +157,7 @@ fn diff() -> Node {
             flag("ih", "indent-heuristic"),
             flag("-ih", "no-indent-heuristic"),
             flag("-i", "no-index"),
+            flag("mb", "merge-base"),
             flag("p", "patience"),
             flag("r", "raw"),
             flag("ss", "shortstat"),
