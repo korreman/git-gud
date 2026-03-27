@@ -426,6 +426,7 @@ fn log() -> Node {
             param("n", "max-count", Number),
             flag("o", "oneline"),
             flag("p", "patch"),
+            flag("r", "reverse"),
             flag("s", "stat"),
             flag("ww", "ignore-all-space"),
             flag("w", "ignore-space-change"),
@@ -539,7 +540,12 @@ fn reflog() -> Node {
 }
 
 fn rev_parse() -> Node {
-    seq([Emit("rev-parse"), argset([])])
+    seq([
+        Emit("rev-parse"),
+        argset([]),
+        separator(),
+        opt(arg(c_h_m_o_u_target_rev())),
+    ])
 }
 
 fn reset() -> Node {
