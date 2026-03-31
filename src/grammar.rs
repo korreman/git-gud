@@ -9,37 +9,37 @@ pub fn ast() -> Node {
     // gdb: GNU debugger
     // gz: gzip
     or([
-        map("a", add()),
-        map("bl", blame()),
-        map("b", branch()),
-        map("cat", cat_file()),
-        map("c", commit()),
-        map("d", diff()),
-        map("e", rebase()),
-        map("fer", for_each_ref()),
-        map("f", fetch()),
-        map("g", checkout()),
-        // h
-        map("i", init()),
-        // j
-        map("k", clone()),
-        map("l", log()),
-        map("m", merge()),
-        // n
-        // o
-        map("p", push()),
-        map("q", status()), // query
-        map("rl", reflog()),
-        map("rp", rev_parse()),
-        map("r", reset()),
-        map("s", switch()),
-        map("t", tag()),
-        map("u", restore()), // undo
-        map("v", show()),
-        map("w", worktree()),
-        map("x", clean()),
-        map("y", pull()),  // yank
-        map("z", stash()), // marks
+        ("a", add()),
+        ("bl", blame()),
+        ("b", branch()),
+        // ("cat", cat_file()),
+        // ("c", commit()),
+        // ("d", diff()),
+        // ("e", rebase()),
+        // ("fer", for_each_ref()),
+        // ("f", fetch()),
+        // ("g", checkout()),
+        // // h
+        // ("i", init()),
+        // // j
+        // ("k", clone()),
+        // ("l", log()),
+        // ("m", merge()),
+        // // n
+        // // o
+        // ("p", push()),
+        // ("q", status()), // query
+        // ("rl", reflog()),
+        // ("rp", rev_parse()),
+        // ("r", reset()),
+        // ("s", switch()),
+        // ("t", tag()),
+        // ("u", restore()), // undo
+        // ("v", show()),
+        // ("w", worktree()),
+        // ("x", clean()),
+        // ("y", pull()),  // yank
+        // ("z", stash()), // marks
     ])
 }
 
@@ -47,19 +47,19 @@ fn add() -> Node {
     seq([
         Emit("add"),
         argset([
-            or([flag("a", "all"), seq([Eol, Emit("--all")])]),
-            flag("-a", "no-all"),
-            flag("d", "dry-run"),
-            flag("f", "force"),
-            flag("i", "interactive"),
-            flag("s", "sparse"),
-            flag("N", "intent-to-add"),
-            flag("r", "refresh"),
-            flag("u", "update"),
-            flag("p", "patch"),
+            ("d", flag("dry-run")),
+            ("f", flag("force")),
+            ("i", flag("interactive")),
+            ("s", flag("sparse")),
+            ("N", flag("intent-to-add")),
+            ("r", flag("refresh")),
+            ("u", flag("update")),
+            ("p", flag("patch")),
+            ("-a", flag("no-all")),
+            ("", or_opt([("a", flag("all")), (EOL, flag("all"))])),
         ]),
         separator(),
-        opt(arg(or([word(".", "."), word("/", ":/")]))),
+        or_opt([(".", Emit(".")), ("/", Emit(":/"))]),
     ])
 }
 
@@ -67,12 +67,12 @@ fn blame() -> Node {
     seq([
         Emit("blame"),
         argset([
-            flag("1", "first-parent"),
-            seq([f("l", "L"), Emit(" "), cursor()]),
-            flag("n", "show-number"),
-            f("s", "s"),
-            f("t", "t"),
-            f("w", "w"),
+            ("1", flag("first-parent")),
+            ("l", seq([f("L"), Emit(" "), cursor()])),
+            ("n", flag("show-number")),
+            ("s", f("s")),
+            ("t", f("t")),
+            ("w", f("w")),
         ]),
     ])
 }
@@ -81,10 +81,10 @@ fn branch() -> Node {
     seq([
         Emit("branch"),
         argset([
-            flag("a", "all"),
-            flag("c", "copy"),
-            flag("d", "delete"),
-            flag("f", "force"),
+            ("a", flag("all")),
+            ("c", flag("copy")),
+            ("d", flag("delete")),
+            ("f", flag("force")),
             param_opt("mg", "merged", c_h_m_o_u_target_rev()),
             param_opt("-mg", "no-merged", c_h_m_o_u_target_rev()),
             flag("m", "move"),
@@ -97,6 +97,7 @@ fn branch() -> Node {
     ])
 }
 
+/*
 fn cat_file() -> Node {
     seq([
         Emit("cat-file"),
@@ -723,9 +724,11 @@ fn stash() -> Node {
 
 // Helpers
 
+*/
 fn separator() -> Node {
-    opt(or([Eat(","), Eat("/")]))
+    or_opt([(",", Noop), ("/", Noop)])
 }
+/*
 
 fn da_diff_algorithm() -> Node {
     param(
@@ -834,3 +837,4 @@ fn custom_quoted() -> Node {
 fn custom_quoted_single() -> Node {
     seq([Emit("'"), cursor(), Emit("'")])
 }
+*/

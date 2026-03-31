@@ -57,10 +57,11 @@ fn run() -> Result<()> {
             }
             println!("{}", result.trim());
         }
-        cli::Sub::Grammar => {
+        cli::Sub::Grammar => {}
+        /*{
             let ast = grammar::ast().normalize();
             println!("{}", ast);
-        }
+        }*/
     }
     Ok(())
 }
