@@ -12,12 +12,14 @@ pub fn ast() -> Node {
         ("a", add()),
         ("bl", blame()),
         ("b", branch()),
-        // ("cat", cat_file()),
-        // ("c", commit()),
-        // ("d", diff()),
-        // ("e", rebase()),
-        // ("fer", for_each_ref()),
-        // ("f", fetch()),
+        ("cat", cat_file()),
+        ("c", commit()),
+        ("d", diff()),
+        ("e", rebase()),
+        ("fer", for_each_ref()),
+        ("fa", fetch_all()),
+        ("fm", fetch_multiple()),
+        ("f", fetch()),
         // ("g", checkout()),
         // // h
         // ("i", init()),
@@ -85,35 +87,44 @@ fn branch() -> Node {
             ("c", flag("copy")),
             ("d", flag("delete")),
             ("f", flag("force")),
-            param_opt("mg", "merged", c_h_m_o_u_target_rev()),
-            param_opt("-mg", "no-merged", c_h_m_o_u_target_rev()),
-            flag("m", "move"),
-            flag("r", "remotes"),
-            t_track(),
-            param("u", "set-upstream-to", c_h_m_o_u_target_rev()),
-            flag("v", "verbose"),
-            flag("v", "verbose"),
+            ("mg", param_opt_or("merged", c_h_m_o_u_target_rev(), false)),
+            (
+                "-mg",
+                param_opt_or("no-merged", c_h_m_o_u_target_rev(), false),
+            ),
+            ("m", flag("move")),
+            ("r", flag("remotes")),
+            // t_track(),
+            (
+                "u",
+                param_or("set-upstream-to", c_h_m_o_u_target_rev(), false),
+            ),
+            ("v", flag("verbose")),
+            ("v", flag("verbose")),
         ]),
     ])
 }
 
-/*
 fn cat_file() -> Node {
     seq([
         Emit("cat-file"),
-        or([
-            arg(or([f("p", "p"), f("e", "e"), f("tp", "t"), f("s", "s")])),
-            arg(object_type()),
-        ]),
-    ])
-}
-
-fn object_type() -> Node {
-    or([
-        word("b", "blob"),
-        word("tg", "tag"),
-        word("tr", "tree"),
-        word("c", "commit"),
+        or_prefix_fallback(
+            " ",
+            [
+                // flags
+                ("p", f("p")),  // pretty-print
+                ("e", f("e")),  // check if exists
+                ("tp", f("t")), // query type of object
+                ("s", f("s")),  // query size of object
+                // object types
+                ("b", Emit("blob")),
+                ("tg", Emit("tag")),
+                ("tr", Emit("tree")),
+                ("c", Emit("commit")),
+            ],
+            false,
+            Fail,
+        ),
     ])
 }
 
@@ -121,31 +132,41 @@ fn commit() -> Node {
     seq([
         Emit("commit"),
         argset([
-            flag("a", "amend"),
-            param("C", "reuse-message", c_h_m_o_u_target_rev()),
-            param("c", "reedit-message", c_h_m_o_u_target_rev()),
-            flag("d", "dry-run"),
-            flag("e", "edit"),
-            flag("n", "no-edit"),
-            param(
-                "f",
-                "fixup",
-                seq([
-                    opt(set([word("a", "amend:"), word("r", "reword:")])),
-                    or([c_h_m_o_u_target_rev(), cursor()]),
-                ]),
+            ("a", flag("amend")),
+            (
+                "C",
+                param_or("reuse-message", c_h_m_o_u_target_rev(), false),
             ),
-            param_opt("g", "gpg-sign", fail()),
-            flag("-g", "no-gpg-sign"),
-            flag("i", "include"),
+            (
+                "c",
+                param_or("reedit-message", c_h_m_o_u_target_rev(), false),
+            ),
+            ("d", flag("dry-run")),
+            ("e", flag("edit")),
+            ("n", flag("no-edit")),
+            (
+                "f",
+                param_or(
+                    "fixup",
+                    [],
+                    // seq([
+                    //     opt(set([word("a", "amend:"), word("r", "reword:")])),
+                    //     or([c_h_m_o_u_target_rev(), cursor()]),
+                    // ]),
+                    false,
+                ),
+            ),
+            // param_opt("g", "gpg-sign", fail()),
+            ("-g", flag("no-gpg-sign")),
+            ("i", flag("include")),
             m_message(),
-            flag("o", "only"),
-            param("sq", "squash", c_h_m_o_u_target_rev()),
-            flag("q", "status"),
-            flag("-q", "no-status"),
-            flag("s", "signoff"),
-            flag("v", "verify"),
-            flag("-v", "no-verify"),
+            ("o", flag("only")),
+            ("sq", param_or("squash", c_h_m_o_u_target_rev(), false)),
+            ("q", flag("status")),
+            ("-q", flag("no-status")),
+            ("s", flag("signoff")),
+            ("v", flag("verify")),
+            ("-v", flag("no-verify")),
         ]),
     ])
 }
@@ -154,95 +175,98 @@ fn diff() -> Node {
     seq([
         Emit("diff"),
         argset([
-            da_diff_algorithm(),
-            flag("ih", "indent-heuristic"),
-            flag("-ih", "no-indent-heuristic"),
-            flag("-i", "no-index"),
-            flag("mb", "merge-base"),
-            flag("p", "patience"),
-            flag("r", "raw"),
-            flag("ss", "shortstat"),
-            flag("s", "stat"),
-            param("u", "unified", number_or_zero()),
-            flag("ww", "ignore-all-space"),
-            flag("w", "ignore-space-change"),
+            ("da", diff_algorithm()),
+            ("ih", flag("indent-heuristic")),
+            ("-ih", flag("no-indent-heuristic")),
+            ("-i", flag("no-index")),
+            ("mb", flag("merge-base")),
+            ("p", flag("patience")),
+            ("r", flag("raw")),
+            ("ss", flag("shortstat")),
+            ("s", flag("stat")),
+            ("c", param_or("unified", [], true)),
+            ("ww", flag("ignore-all-space")),
+            ("w", flag("ignore-space-change")),
         ]),
         separator(),
-        opt(arg(c_h_m_o_u_target_rev())),
-        opt(arg(c_h_m_o_u_target_rev())),
+        or_prefix_fallback(" ", c_h_m_o_u_target_rev(), false, Noop),
+        or_prefix_fallback(" ", c_h_m_o_u_target_rev(), false, Noop),
     ])
 }
 
 fn rebase() -> Node {
     seq([
         Emit("rebase"),
-        or([
-            seq([
-                in_rebase(),
-                or([
-                    arg(flag("a", "abort")),
-                    arg(flag("c", "continue")),
-                    arg(flag("e", "edit-todo")),
-                    arg(flag("h", "show-current-patch")),
-                    arg(flag("q", "quit")),
-                    arg(flag("s", "skip")),
-                ]),
-            ]),
+        seq([or_prefix_fallback(
+            " ",
+            [
+                ("a", flag("abort")),
+                ("c", flag("continue")),
+                ("e", flag("edit-todo")),
+                ("h", flag("show-current-patch")),
+                ("q", flag("quit")),
+                ("s", flag("skip")),
+            ],
+            false,
             seq([
                 argset([
-                    da_diff_algorithm(),
-                    flag("i", "interactive"),
-                    flag("r", "root"),
-                    flag("-f", "no-ff"),
-                    flag("s", "stat"),
-                    flag("-s", "no-stat"),
-                    flag("ur", "update-refs"),
-                    flag("-ur", "no-update-refs"),
-                    flag("v", "verify"),
-                    flag("-v", "no-verify"),
+                    ("da", diff_algorithm()),
+                    ("i", flag("interactive")),
+                    ("r", flag("root")),
+                    ("-f", flag("no-ff")),
+                    ("s", flag("stat")),
+                    ("-s", flag("no-stat")),
+                    ("ur", flag("update-refs")),
+                    ("-ur", flag("no-update-refs")),
+                    ("v", flag("verify")),
+                    ("-v", flag("no-verify")),
                 ]),
                 separator(),
-                opt(arg(c_h_m_o_u_target_rev())),
+                or_prefix_fallback(" ", c_h_m_o_u_target_rev(), false, Noop),
             ]),
-        ]),
+        )]),
     ])
 }
 
 fn fetch() -> Node {
     seq([
         Emit("fetch"),
-        or([
-            seq([arg(flag("a", "all")), fetch_args()]),
-            seq([
-                arg(flag("m", "multiple")),
-                fetch_args(),
-                separator(),
-                opt(arg(c_o_target_remote())),
-            ]),
-            seq([
-                fetch_args(),
-                separator(),
-                opt(seq([
-                    arg(c_o_target_remote()),
-                    opt(arg(c_h_m_o_u_target_branch())),
-                ])),
-            ]),
-        ]),
+        fetch_args(),
+        separator(),
+        or_prefix_fallback(
+            " ",
+            c_o_target_remote(),
+            false,
+            or_prefix_fallback(" ", c_h_m_o_u_target_branch(), false, Noop),
+        ),
     ])
+}
+
+fn fetch_multiple() -> Node {
+    seq([
+        Emit("fetch --multiple"),
+        fetch_args(),
+        separator(),
+        or_prefix_fallback(" ", c_o_target_remote(), false, Noop),
+    ])
+}
+
+fn fetch_all() -> Node {
+    seq([Emit("fetch --all"), fetch_args()])
 }
 
 fn fetch_args() -> Node {
     argset([
-        flag("4", "ipv4"),
-        flag("6", "ipv6"),
-        flag("A", "append"),
-        flag("-a", "no-all"),
-        flag("d", "dry-run"),
-        flag("f", "force"),
-        flag("k", "keep"),
-        flag("p", "prune"),
-        flag("t", "tags"),
-        flag("-t", "no-tags"),
+        ("4", flag("ipv4")),
+        ("6", flag("ipv6")),
+        ("A", flag("append")),
+        ("-a", flag("no-all")),
+        ("d", flag("dry-run")),
+        ("f", flag("force")),
+        ("k", flag("keep")),
+        ("p", flag("prune")),
+        ("t", flag("tags")),
+        ("-t", flag("no-tags")),
     ])
 }
 
@@ -250,64 +274,60 @@ fn for_each_ref() -> Node {
     seq([
         Emit("for-each-ref"),
         argset([
-            flag("c", "contains"),     // TODO: object param
-            flag("nc", "no-contains"), // TODO: object param
-            param(
-                "f",
-                "format",
-                or([
-                    seq([Emit("'"), for_each_ref_fields(), Emit("'")]),
-                    custom_quoted_single(),
-                ]),
-            ),
-            param("irr", "include-root-refs", custom_quoted_single()),
-            flag("i", "ignore-case"),
-            flag("m", "merged"),     // TODO: object param
-            flag("nm", "no-merged"), // TODO: object param
-            param("n", "count", Number),
-            flag("oe", "omit-empty"),
-            param("e", "exclude", custom_quoted_single()),
-            param("s", "sort", or(for_each_ref_field_name())),
+            ("c", flag("contains")),     // TODO: object param
+            ("nc", flag("no-contains")), // TODO: object param
+            ("f", param("format", for_each_ref_fields())),
+            ("irr", param_or("include-root-refs", [], false)),
+            ("i", flag("ignore-case")),
+            ("m", flag("merged")),     // TODO: object param
+            ("nm", flag("no-merged")), // TODO: object param
+            ("n", param_or("count", [], true)),
+            ("oe", flag("omit-empty")),
+            ("e", param_or("exclude", [], false)),
+            ("s", param_or("sort", for_each_ref_field_name(), false)),
         ]),
     ])
 }
 
 fn for_each_ref_fields() -> Node {
-    let fields = for_each_ref_field_name().map(|f| seq([Emit("%("), f, Emit(")")]));
-    argset_one(fields)
+    seq([
+        Emit("\""),
+        argset(for_each_ref_field_name().map(|(s, f)| (s, seq([Emit("%("), f, Emit(")")])))),
+        Emit("\""),
+    ])
 }
 
-fn for_each_ref_field_name() -> [Node; 28] {
+fn for_each_ref_field_name() -> [(Str, Node); 28] {
     [
-        // TODO: stuff that targets <commitish> could be implemented here
-        word("al", "align:left"),
-        word("am", "align:middle"),
-        word("ar", "align:right"),
-        word("cb", "contents:body"),
-        word("csb", "contents:subject"),
-        word("cs", "contents:size"),
-        word("csg", "contents:signature"),
-        word("cl", "contents:lines"),
-        word("d", "describe"),
-        word("db", "deltabase"),
-        word("h", "HEAD"),
-        word("on", "objectname"),
-        word("os", "objectsize"),
-        word("ot", "objecttype"),
-        word("p", "push"),
-        word("rn", "refname"),
-        word("rns", "refname:short"),
-        word("rs", "raw:size"),
-        word("sf", "signature:fingerprint"),
-        word("sg", "signature:grade"),
-        word("sk", "signature:key"),
-        word("spkf", "signature:primarykeyfingerprint"),
-        word("sr", "symref"),
-        word("s", "signature"),
-        word("ss", "signature:signer"),
-        word("stl", "signature:trustlevel"),
-        word("u", "upstream"),
-        word("wp", "worktreepath"),
+        // TODO: stuff that targets <commitish> could be implemented somewhere around here
+        ("al", Emit("align:left")),
+        ("am", Emit("align:middle")),
+        ("ar", Emit("align:right")),
+        ("cb", Emit("contents:body")),
+        ("csb", Emit("contents:subject")),
+        ("cs", Emit("contents:size")),
+        ("csg", Emit("contents:signature")),
+        ("cl", Emit("contents:lines")),
+        ("d", Emit("describe")),
+        ("db", Emit("deltabase")),
+        ("h", Emit("HEAD")),
+        ("on", Emit("objectname")),
+        ("os", Emit("objectsize")),
+        ("ot", Emit("objecttype")),
+        ("p", Emit("push")),
+        ("rn", Emit("refname")),
+        ("rns", Emit("refname:short")),
+        ("rs", Emit("raw:size")),
+        ("sf", Emit("signature:fingerprint")),
+        ("sg", Emit("signature:grade")),
+        ("sk", Emit("signature:key")),
+        ("spkf", Emit("signature:primarykeyfingerprint")),
+        ("sr", Emit("symref")),
+        ("s", Emit("signature")),
+        ("ss", Emit("signature:signer")),
+        ("stl", Emit("signature:trustlevel")),
+        ("u", Emit("upstream")),
+        ("wp", Emit("worktreepath")),
     ]
 }
 
@@ -315,25 +335,26 @@ fn checkout() -> Node {
     seq([
         Emit("checkout"),
         argset([
-            f("B", "B"),
-            f("bb", "B"),
-            f("b", "b"),
-            f("l", "l"),
-            flag("d", "detach"),
-            flag("f", "force"),
-            flag("g", "guess"),
-            flag("-g", "no-guess"),
-            flag("mg", "merge"),
-            flag("-o", "no-overlay"),
-            os_ts_ours_theirs(),
-            flag("p", "patch"),
-            t_track(),
+            ("B", f("B")),
+            ("bb", f("B")),
+            ("b", f("b")),
+            ("l", f("l")),
+            ("d", flag("detach")),
+            ("f", flag("force")),
+            ("g", flag("guess")),
+            ("-g", flag("no-guess")),
+            ("mg", flag("merge")),
+            ("-o", flag("no-overlay")),
+            // os_ts_ours_theirs(),
+            ("p", flag("patch")),
+            // t_track(),
         ]),
-        separator(),
-        opt(arg(c_h_m_o_u_target_rev())),
+        // separator(),
+        // opt(arg(c_h_m_o_u_target_rev())),
     ])
 }
 
+/*
 // TODO: Should have most of the same options as diff command
 fn show() -> Node {
     seq([
@@ -721,70 +742,78 @@ fn stash() -> Node {
         ]))),
     ])
 }
+*/
 
 // Helpers
-
-*/
 fn separator() -> Node {
     or_opt([(",", Noop), ("/", Noop)])
 }
-/*
 
-fn da_diff_algorithm() -> Node {
-    param(
-        "da",
+fn diff_algorithm() -> Node {
+    param_or(
         "diff-algorithm",
-        or([
-            word("h", "histogram"),
-            word("m", "minimal"),
-            word("y", "myers"),
-            word("p", "patience"),
-        ]),
+        [
+            ("h", Emit("histogram")),
+            ("m", Emit("minimal")),
+            ("y", Emit("myers")),
+            ("p", Emit("patience")),
+        ],
+        false,
     )
 }
 
-fn c_h_m_o_u_target_branch() -> Node {
-    or([
-        map_custom("c", current_branch, "CURRENT BRANCH"),
-        word("h", "HEAD"),
-        map_custom("m", main_branch, "MAIN BRANCH"),
-        map_custom("o", main_remote_head, "MAIN REMOTE HEAD"),
-        map_custom("u", current_upstream, "CURRENT UPSTREAM"),
-    ])
+fn c_h_m_o_u_target_branch() -> [(Str, Node); 5] {
+    [
+        ("c", Custom(current_branch, "CURRENT BRANCH")),
+        ("h", Emit("HEAD")),
+        ("m", Custom(main_branch, "MAIN BRANCH")),
+        ("o", Custom(main_remote_head, "MAIN REMOTE HEAD")),
+        ("u", Custom(current_upstream, "CURRENT UPSTREAM")),
+    ]
 }
 
-fn c_o_target_remote() -> Node {
-    or([
-        map_custom("c", current_remote, "CURRENT REMOTE"),
-        map_custom("o", main_remote, "MAIN REMOTE"),
-    ])
+fn c_h_m_o_u_target_rev() -> [(Str, Node); 7] {
+    [
+        ("c", Custom(current_branch, "CURRENT BRANCH")),
+        ("h", Emit("HEAD")),
+        ("m", Custom(main_branch, "MAIN BRANCH")),
+        ("o", Custom(main_remote_head, "MAIN REMOTE HEAD")),
+        ("u", Custom(current_upstream, "CURRENT UPSTREAM")),
+        ("-", seq([Emit("HEAD~"), or_fallback([], true, Noop)])),
+        (
+            "@",
+            seq([Emit("HEAD@{"), or_fallback([], true, Fail), Emit("}")]),
+        ),
+    ]
 }
 
+fn c_o_target_remote() -> [(Str, Node); 2] {
+    [
+        ("c", Custom(current_remote, "CURRENT REMOTE")),
+        ("o", Custom(main_remote, "MAIN REMOTE")),
+    ]
+}
+
+/*
 fn rs_recurse_submodules() -> Node {
     flag("rs", "recurse-submodules")
 }
 
-fn c_h_m_o_u_target_rev() -> Node {
-    or([
-        c_h_m_o_u_target_branch(),
-        seq([word("-", "HEAD~"), opt(Number)]),
-        seq([word("@", "HEAD@{"), Number, Emit("}")]),
-    ])
+*/
+fn m_message() -> (Str, Node) {
+    ("m", seq([Emit("--message="), custom_quoted()]))
 }
 
-fn m_message() -> Node {
-    param("m", "message", custom_quoted())
-}
-
+/*
 fn t_track() -> Node {
-    or([
-        param(
-            "t",
-            "track",
-            opt(or([word("d", "direct"), word("i", "indirect")])),
-        ),
-        flag("-t", "no-track"),
-    ])
+    // or([
+    //     param(
+    //         "t",
+    //         "track",
+    //         opt(or([word("d", "direct"), word("i", "indirect")])),
+    //     ),
+    //     flag("-t", "no-track"),
+    // ])
 }
 
 fn f_pretty() -> Node {
@@ -830,10 +859,12 @@ fn in_cherry_pick() -> Node {
     Custom(crate::helpers::in_cherry_pick, "MUST BE IN CHERRY-PICK")
 }
 
+*/
 fn custom_quoted() -> Node {
     seq([Emit("\""), cursor(), Emit("\"")])
 }
 
+/*
 fn custom_quoted_single() -> Node {
     seq([Emit("'"), cursor(), Emit("'")])
 }

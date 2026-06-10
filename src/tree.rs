@@ -1,4 +1,4 @@
-use std::fmt::{self, Display, Write};
+// use std::fmt::{self, Display, Write};
 
 use anyhow::Result;
 use log::trace;
@@ -20,7 +20,7 @@ pub enum Node {
     /// Always fails.
     Fail,
     /// Fails if at the end of the input, and the input is terminated.
-    Eoi,
+    End,
     /// Produce the given string.
     Emit(Str),
     /// Run a function and produce its output.
@@ -33,7 +33,7 @@ pub enum Node {
     /// If `number` is true, an additional custom alternative that parses and spits out a number is included.
     /// If none of the options are successful, `fallback` is run instead.
     Alt {
-        /// Prepended to all matching node outputs (including number and EOI, excluding fallback)
+        /// Prepended to all matching node outputs (including numbers and `End`, excluding fallback)
         prefix: Str,
         /// Normally only one node can be matched, but if this is true,
         /// an arbitrary sequence of the nodes is matched,
@@ -105,7 +105,7 @@ impl Node {
         match self {
             Node::Fail => None,
             Node::Noop => Some(input),
-            Node::Eoi => {
+            Node::End => {
                 if input.is_empty() && eol {
                     trace!("match");
                     Some(input)
@@ -222,6 +222,7 @@ impl Node {
                 // If no nodes matched, run the fallback, otherwise return the rest of the input.
                 if !parsed.iter().any(|x| *x) {
                     trace!("no normal matches, trying fallback");
+                    output.push_str(prefix);
                     fallback.expand(input, eol, output)
                 } else {
                     trace!("set match | {input}");
@@ -386,6 +387,10 @@ pub fn set_prefix_fallback<const N: usize>(
     }
 }
 
+pub fn arg_or<const N: usize>(nodes: [(Str, Node); N], number: bool) -> Node {
+    or_prefix_fallback(" ", nodes, number, Noop)
+}
+
 pub fn argset<const N: usize>(nodes: [(Str, Node); N]) -> Node {
     set_prefix_fallback(" ", nodes, Noop)
 }
@@ -394,7 +399,7 @@ pub fn argset_one<const N: usize>(nodes: [(Str, Node); N]) -> Node {
     set_prefix_fallback(" ", nodes, Fail)
 }
 
-pub fn param<const N: usize>(name: Str, params: [(Str, Node); N], number: bool) -> Node {
+pub fn param_or<const N: usize>(name: Str, params: [(Str, Node); N], number: bool) -> Node {
     seq([
         Emit("--"),
         Emit(name),
@@ -402,7 +407,11 @@ pub fn param<const N: usize>(name: Str, params: [(Str, Node); N], number: bool) 
     ])
 }
 
-pub fn param_opt<const N: usize>(name: Str, params: [(Str, Node); N], number: bool) -> Node {
+pub fn param(name: Str, param: Node) -> Node {
+    seq([Emit("--"), Emit(name), Emit("="), param])
+}
+
+pub fn param_opt_or<const N: usize>(name: Str, params: [(Str, Node); N], number: bool) -> Node {
     seq([
         Emit("--"),
         Emit(name),
