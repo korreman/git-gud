@@ -4,11 +4,11 @@ use clap::{Parser, Subcommand};
 #[command(version, about)]
 pub struct Cli {
     #[command(subcommand)]
-    pub subcommand: Sub,
+    pub cmd: Command,
 }
 
 #[derive(Debug, Clone, Subcommand)]
-pub enum Sub {
+pub enum Command {
     /// Generate an installer script that can be sourced during shell init.
     Installer {
         /// Set the command to expand to when entering only `g` and submitting the command.
@@ -17,6 +17,46 @@ pub enum Sub {
     },
     /// Expand a shorthand expression to a subcommand.
     Expand { expr: String, cursor_char: char },
-    /// Show the shorthand grammar.
-    Grammar,
+    /// Start an interactive completion prompt, showing you options as you type.
+    Complete,
+    /// Shaw.
+    #[command(hide = true)]
+    Shaw,
 }
+
+pub const GIT_GUD: &'static str = "  |\\ |\\
+  | \\| \\   PHRASE
+  \\ O O/    
+ _ \\  / _ 
+  \\/  \\/
+  /____\\
+    | \\
+   /  /
+";
+
+pub const GIT_GUD_POSHANKA: &'static str = "  |\\ |\\
+  | \\| \\   PHRASE
+  \\ O O/    
+ O \\  / O 
+  \\/  \\/
+  /____\\
+    | \\
+   /  /
+";
+
+pub const HORNET_PHRASES: &[&'static str] = &[
+    "Garama",
+    "Fuedastama",
+    "Vennefrein",
+    "Yirenare",
+    "Kadestre",
+    "Yennada",
+    "La, fenistra",
+    "Hasvien",
+    "Gueneera",
+    "Nejinafore",
+    "Nesvire",
+    "Temirayen",
+    "Mihrfehne",
+    "Poshanka!",
+];

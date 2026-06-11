@@ -1,10 +1,14 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use log::debug;
+use rand::Rng;
+
+use crate::cli::HORNET_PHRASES;
 
 const INSTALLER_SCRIPT: &str = include_str!("git_expand.fish.template");
 
 mod cli;
+mod completion;
 mod grammar;
 mod helpers;
 mod tree;
@@ -20,8 +24,8 @@ fn main() {
 
 fn run() -> Result<()> {
     let cli = cli::Cli::parse();
-    match cli.subcommand {
-        cli::Sub::Installer { default_command } => {
+    match cli.cmd {
+        cli::Command::Installer { default_command } => {
             let executable = std::env::current_exe().context("couldn't get own executable path")?;
             let with_executable = INSTALLER_SCRIPT.replace(
                 "${GIT_GUD}",
@@ -30,7 +34,7 @@ fn run() -> Result<()> {
             let with_default = with_executable.replace("${DEFAULT_COMMAND}", &default_command);
             print!("{with_default}");
         }
-        cli::Sub::Expand { expr, cursor_char } => {
+        cli::Command::Expand { expr, cursor_char } => {
             let ast = grammar::ast();
             debug!("{ast:#?}");
             let mut result = String::from("git ");
@@ -57,11 +61,21 @@ fn run() -> Result<()> {
             }
             println!("{}", result.trim());
         }
-        cli::Sub::Grammar => {}
-        /*{
-            let ast = grammar::ast().normalize();
-            println!("{}", ast);
-        }*/
+        cli::Command::Complete => {
+            let ast = grammar::ast();
+            completion::run(&ast);
+        }
+        cli::Command::Shaw => {
+            let mut rng: rand::rngs::SmallRng = rand::make_rng();
+            let phrase = HORNET_PHRASES[rng.next_u32() as usize % HORNET_PHRASES.len()];
+            let art = if phrase == "Poshanka!" {
+                cli::GIT_GUD_POSHANKA
+            } else {
+                cli::GIT_GUD
+            };
+            let art = art.replace("PHRASE", phrase);
+            println!("{}", art);
+        }
     }
     Ok(())
 }
