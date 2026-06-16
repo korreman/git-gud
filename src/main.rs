@@ -68,12 +68,7 @@ fn run() -> Result<()> {
         cli::Command::Shaw => {
             let mut rng: rand::rngs::SmallRng = rand::make_rng();
             let phrase = HORNET_PHRASES[rng.next_u32() as usize % HORNET_PHRASES.len()];
-            let art = if phrase == "Poshanka!" {
-                cli::GIT_GUD_POSHANKA
-            } else {
-                cli::GIT_GUD
-            };
-            let art = art.replace("PHRASE", phrase);
+            let art = cli::GIT_GUD.replace("PHRASE", phrase);
             println!("{}", art);
         }
     }

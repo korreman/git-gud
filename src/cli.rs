@@ -25,24 +25,16 @@ pub enum Command {
 }
 
 pub const GIT_GUD: &'static str = "  |\\ |\\
-  | \\| \\   PHRASE
-  \\ O O/    
- _ \\  / _ 
-  \\/  \\/
-  /____\\
+  | \\| \\    PHRASE
+  |    |  /
+  \\ O O/
+   \\  /
+   /  \\
+  /    \\
+ /______\\
     | \\
-   /  /
-";
-
-pub const GIT_GUD_POSHANKA: &'static str = "  |\\ |\\
-  | \\| \\   PHRASE
-  \\ O O/    
- O \\  / O 
-  \\/  \\/
-  /____\\
-    | \\
-   /  /
-";
+    | /
+ ";
 
 pub const HORNET_PHRASES: &[&'static str] = &[
     "Garama",
