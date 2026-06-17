@@ -48,6 +48,21 @@ pub enum Node {
     },
 }
 
+#[derive(Clone, Debug)]
+pub struct ExpandState<'a> {
+    result: String,
+    remaining_input: &'a str,
+    remaining_node: &'a Node,
+    remaining_state: NodePartial,
+}
+
+#[derive(Clone, Debug)]
+pub enum NodePartial {
+    None,
+    Seq { idx: usize },
+    Alt { parsed: Vec<bool> },
+}
+
 impl Node {
     /// Normalize the grammar:
     /// - Collapse structures where possible.
@@ -101,6 +116,8 @@ impl Node {
         }
     }
 
+    // Expand should instead return a more complex structure.
+    // Return a produced string (if any), but also a description of what might still match.
     pub fn expand<'a>(&self, input: &'a str, eol: bool, output: &mut String) -> Option<&'a str> {
         match self {
             Node::Fail => None,
